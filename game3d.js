@@ -744,6 +744,13 @@
         rebuild()
         return
       }
+      // Shift + ←/→ 转视角（与底部两个旋转按钮一致），别和移动键抢
+      if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault()
+        cam.yaw += (event.key === 'ArrowLeft' ? 1 : -1) * Math.PI / 9
+        applyCam()
+        return
+      }
       const dir = DIRS[event.key]
       if (!dir) return
       event.preventDefault()
@@ -847,6 +854,11 @@
       rebuild,
       undo,
       resetView,
+      /** 转视角（弧度）：手机上的旋转按钮与 Shift+←/→ 共用 */
+      rotateBy (delta) {
+        cam.yaw += delta
+        applyCam()
+      },
       setLimit,
       get limit () { return stepLimit },
       get modes () { return MODES },

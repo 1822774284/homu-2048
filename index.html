@@ -278,10 +278,11 @@
       grid-template-columns: repeat(2, 56px); gap: 8px;
     }
     .pad-side .dir { height: 44px; min-width: 56px; padding: 0 8px; font-size: 15px; }
-    .pad { bottom: 14px; gap: 6px; }
-    .pad .dir { height: 34px; min-width: 54px; font-size: 12px; }
-    footer { padding: 6px 10px 8px; font-size: 10px; }
-    footer span:first-child { display: none; }
+    .pad { bottom: 14px; gap: 5px; }
+    .pad .dir { height: 34px; min-width: 54px; font-size: 12px; white-space: nowrap; }
+    .pad .dir.act { min-width: 58px; }
+    .pad .dir.act.icon { min-width: 38px; font-size: 15px; }
+    footer { display: none; }
     /* 手机上棋盘尽量占满宽度，别缩成一小块 */
     .b2 { width: min(88vw, 560px); transform: none; }
   }
@@ -293,7 +294,7 @@
   <div class="boot-cube"></div>
   <p id="boot-hint">正在加载…</p>
 </div>
-<div id="touch-hint" hidden>单指滑动 = 推方块 · 双指拖动 = 转视角</div>
+<div id="touch-hint" hidden>单指滑动 = 推方块 · 双指拖动或 ↺ ↻ = 转视角</div>
 <div id="board2d"></div>
 <header>
   <div>
@@ -335,7 +336,9 @@
 </div>
 
 <div class="pad" id="pad">
-  <button class="dir act" data-act="view" title="视角复位（V）">⟲ 视角</button>
+  <button class="dir act icon" data-act="yaw-l" title="向左转视角（Shift+←）">↺</button>
+  <button class="dir act icon" data-act="yaw-r" title="向右转视角（Shift+→）">↻</button>
+  <button class="dir act" data-act="view" title="视角复位（V）">⌂ 视角</button>
   <button class="dir act" data-act="undo" title="回退一步（Ctrl+Z）">↶ 回退</button>
   <button class="dir act icon" data-act="sound" title="音效开关（M）">🔊</button>
 </div>
@@ -555,6 +558,8 @@
     el, dir: el.dataset.dir, tip: el.querySelector('.tip'),
   }))
   const viewBtn = document.querySelector('.pad .dir[data-act=view]')
+  const yawLBtn = document.querySelector('.pad .dir[data-act=yaw-l]')
+  const yawRBtn = document.querySelector('.pad .dir[data-act=yaw-r]')
   const undoBtn = document.querySelector('.pad .dir[data-act=undo]')
   const soundBtn = document.querySelector('.pad .dir[data-act=sound]')
 
@@ -664,6 +669,15 @@
     const g = three()
     if (g) g.resetView()
   })
+  // 转视角：手机上双指拖动不直观，给两个能点的（键盘 Shift+←/→ 同效）
+  for (const [btn, dir] of [[yawLBtn, 1], [yawRBtn, -1]]) {
+    if (!btn) continue
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      const g = three()
+      if (g) g.rotateBy(dir * Math.PI / 9)
+    })
+  }
   undoBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault()
     active().undo()
