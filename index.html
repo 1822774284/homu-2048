@@ -247,6 +247,16 @@
     .boot-cube { animation: none; }
   }
 
+  /* 触摸设备的一次性提示 */
+  #touch-hint {
+    position: fixed; left: 50%; top: 152px; transform: translateX(-50%);
+    padding: 7px 14px; border-radius: 999px; z-index: 30; pointer-events: none;
+    background: rgba(17,26,46,.94); border: 1px solid rgba(125,211,252,.4);
+    color: #cbd5e1; font-size: 12px; white-space: nowrap;
+    transition: opacity .6s ease;
+  }
+  #touch-hint.gone { opacity: 0; }
+
   /* ---- 窄屏（手机）---- */
   @media (max-width: 720px), (max-height: 560px) {
     header { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px 6px; }
@@ -265,9 +275,9 @@
     #triad, .legend { display: none; }
     .pad-side {
       right: 8px; top: auto; bottom: 92px; transform: none;
-      grid-template-columns: repeat(2, 46px); gap: 6px;
+      grid-template-columns: repeat(2, 56px); gap: 8px;
     }
-    .pad-side .dir { height: 34px; min-width: 46px; padding: 0 6px; font-size: 13px; }
+    .pad-side .dir { height: 44px; min-width: 56px; padding: 0 8px; font-size: 15px; }
     .pad { bottom: 14px; gap: 6px; }
     .pad .dir { height: 34px; min-width: 54px; font-size: 12px; }
     footer { padding: 6px 10px 8px; font-size: 10px; }
@@ -283,6 +293,7 @@
   <div class="boot-cube"></div>
   <p id="boot-hint">正在加载…</p>
 </div>
+<div id="touch-hint" hidden>单指滑动 = 推方块 · 双指拖动 = 转视角</div>
 <div id="board2d"></div>
 <header>
   <div>
@@ -498,6 +509,7 @@
     if (!noSave && store) { try { store.setItem('homu3d.dim.v1', dim) } catch { /* ignore */ } }
     syncModePills(game)
     game.rebuild()
+    updateTouchHint()
   }
   for (const b of dimBtns) {
     b.addEventListener('pointerdown', (e) => {
@@ -615,6 +627,9 @@
   }
   let hotTimer = null
   const feedback = (dir) => {
+    // 玩家已经动手了，触摸提示可以收了
+    hintUsed = true
+    hideTouchHint()
     const axis = dir[0]
     const chip = document.querySelector(`.chip[data-axis=${axis}]`)
     if (chip) {
@@ -669,6 +684,27 @@
   } else {
     soundBtn.style.display = 'none'
   }
+
+  /* ---------- 触摸提示（只在触摸设备、且是 3D 时出现一次） ---------- */
+  const touchHint = document.getElementById('touch-hint')
+  const coarsePointer = matchMedia('(pointer: coarse)').matches
+  let hintUsed = false
+  let hintTimer = null
+  function hideTouchHint () {
+    if (!touchHint) return
+    touchHint.classList.add('gone')
+    clearTimeout(hintTimer)
+  }
+  function updateTouchHint () {
+    if (!touchHint) return
+    const want = coarsePointer && !hintUsed && (dim === '3d' || dim === '3d4')
+    if (!want) { hideTouchHint(); return }
+    touchHint.hidden = false
+    touchHint.classList.remove('gone')
+    clearTimeout(hintTimer)
+    hintTimer = setTimeout(hideTouchHint, 7000)
+  }
+
   applyDim()
 
   // 调试 / 自动化入口：探针按当前维度取 api（stats、state 之类）

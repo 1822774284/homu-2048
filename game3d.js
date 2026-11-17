@@ -132,13 +132,13 @@
       const shift = targetShift()
       const portrait = camera.aspect < 1
       const target = portrait ? 0.90 : 0.94   // 占屏幕比例，留边给阴影与描边
-      // 竖屏时转视角会让投影宽度变化很大，按 4 个 yaw 取最坏值；横屏按当前 yaw 即可，不然白缩一圈
-      const yaws = portrait ? [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.75] : [0]
+      // 竖屏时转视角会让投影宽度变化很大，按 4 个绝对朝向取最坏值（绝对角度 → 转动时机位不会忽大忽小）
+      const yaws = portrait ? [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.75] : [cam.yaw]
       let worst = 6
-      for (const dYaw of yaws) {
+      for (const yaw of yaws) {
         let r = 14
         for (let i = 0; i < 3; i++) {
-          const m = maxExtent(r, cam.yaw + dYaw, shift)
+          const m = maxExtent(r, yaw, shift)
           r = Math.min(46, Math.max(6, r * (m / target)))
         }
         worst = Math.max(worst, r)
@@ -751,25 +751,74 @@
       step(dir)
     })
 
-    let drag = null
+    /* ---------- 指针：鼠标拖动转视角；触摸单指滑动推块、双指拖动转视角 ---------- */
+    const pointers = new Map()
+    let mouseDrag = null
+    let swipe = null
+
+    /** 把一次滑动映射到“屏幕上最接近的那个世界方向”。
+     *  手机上没有方向键概念，玩家只知道“往那边滑”，所以按当前机位的投影来挑方向。 */
+    function pushBySwipe (dx, dy) {
+      const len = Math.hypot(dx, dy)
+      if (len < 1) return
+      const ux = dx / len
+      const uy = dy / len
+      const proj = axesScreen()
+      let best = null
+      for (const dir of model.DIRS) {
+        const axis = dir[0]
+        const sign = dir[1] === '+' ? 1 : -1
+        const p = proj[axis]
+        const vx = p.x * sign
+        const vy = p.y * sign
+        const l = Math.hypot(vx, vy)
+        if (l < 0.15) continue           // 这根轴几乎正对镜头，屏幕上没有方向可言
+        const cos = (ux * vx + uy * vy) / l
+        if (!best || cos > best.cos) best = { dir, cos }
+      }
+      if (!best || best.cos < 0.45) return
+      if (api.onKey) api.onKey(best.dir)
+      step(best.dir)
+    }
+
     renderer.domElement.addEventListener('pointerdown', (e) => {
-      drag = { x: e.clientX, y: e.clientY }
-      renderer.domElement.setPointerCapture(e.pointerId)
+      if (!active) return
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      try { renderer.domElement.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+      if (e.pointerType === 'mouse') {
+        mouseDrag = { x: e.clientX, y: e.clientY }
+        return
+      }
+      // 单指：先记成滑动候选；第二根手指一进来就改判为“转视角”
+      swipe = pointers.size === 1
+        ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }
+        : null
     })
+
     renderer.domElement.addEventListener('pointermove', (e) => {
-      if (!drag) return
-      const dx = (e.clientX - drag.x) * 0.007
-      const dy = (e.clientY - drag.y) * 0.007
-      cam.yaw -= dx
-      cam.pitch += dy
+      const prev = pointers.get(e.pointerId)
+      if (!prev) return
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      const isMouse = e.pointerType === 'mouse'
+      if (!isMouse && pointers.size < 2) return   // 单指触摸留给滑动，不转视角
+      const k = isMouse ? 0.007 : 0.005
+      cam.yaw -= (e.clientX - prev.x) * k
+      cam.pitch += (e.clientY - prev.y) * k
       // 折进 (-π, π]，一次大位移也能落回区间（一次加减不够）
       cam.pitch = Math.atan2(Math.sin(cam.pitch), Math.cos(cam.pitch))
-      drag = { x: e.clientX, y: e.clientY }
       applyCam()
     })
+
     const end = (e) => {
-      drag = null
+      pointers.delete(e.pointerId)
       try { renderer.domElement.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+      if (e.pointerType === 'mouse') { mouseDrag = null; return }
+      if (!swipe || swipe.id !== e.pointerId) return
+      const dx = e.clientX - swipe.x
+      const dy = e.clientY - swipe.y
+      const dt = performance.now() - swipe.t
+      swipe = null
+      if (Math.hypot(dx, dy) >= 26 && dt < 700) pushBySwipe(dx, dy)
     }
     renderer.domElement.addEventListener('pointerup', end)
     renderer.domElement.addEventListener('pointercancel', end)
