@@ -111,6 +111,12 @@ node probe-cdp.mjs                 # 需要本机有 Chrome 或 Edge，可用 ED
 
 需要 WebGL（Chrome / Edge / Firefox / Safari 近两年版本均可）。移动端：平面版支持滑动手势，立方版用右侧六个方向按钮。
 
+手机上是另一套布局：标题栏收成竖排、状态卡铺满一行、坐标轴与轴徽章收起、六个方向按钮挪到右下；立方体的机位会按屏幕比例自动重算（竖屏时还会对多个朝向取最坏值，转视角也不会顶出屏幕）。
+
+| 手机 · 3×3×3 | 手机 · 4×4×4 | 手机 · 平面 |
+| --- | --- | --- |
+| ![](docs/mob-m3.png) | ![](docs/mob-m4.png) | ![](docs/mob-m2.png) |
+
 ## 许可
 
 [MIT](LICENSE)。内置的 three.js r160 同样是 MIT，见 `vendor/three.min.js` 与 LICENSE 中的第三方声明。

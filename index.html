@@ -247,6 +247,35 @@
     .boot-cube { animation: none; }
   }
 
+  /* ---- 窄屏（手机）---- */
+  @media (max-width: 720px), (max-height: 560px) {
+    header { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px 6px; }
+    h1 { font-size: 17px; }
+    .sub { display: none; }
+    .dims { gap: 4px; margin-bottom: 6px; flex-wrap: nowrap; }
+    .dim { padding: 3px 8px; font-size: 11px; }
+    .modes { margin-top: 5px; gap: 4px; }
+    .modes-hint { display: none; }
+    .mode { padding: 2px 9px; font-size: 11px; }
+    .stats { gap: 4px; }
+    .stat { flex: 1 1 0; padding: 3px 6px; border-radius: 8px; }
+    .stat span { font-size: 9px; letter-spacing: .04em; }
+    .stat b { font-size: 14px; }
+    /* 手机上坐标轴、轴徽章、六向按钮会和棋盘抢地方：只留按钮，挪到右下 */
+    #triad, .legend { display: none; }
+    .pad-side {
+      right: 8px; top: auto; bottom: 92px; transform: none;
+      grid-template-columns: repeat(2, 46px); gap: 6px;
+    }
+    .pad-side .dir { height: 34px; min-width: 46px; padding: 0 6px; font-size: 13px; }
+    .pad { bottom: 14px; gap: 6px; }
+    .pad .dir { height: 34px; min-width: 54px; font-size: 12px; }
+    footer { padding: 6px 10px 8px; font-size: 10px; }
+    footer span:first-child { display: none; }
+    /* 手机上棋盘尽量占满宽度，别缩成一小块 */
+    .b2 { width: min(88vw, 560px); transform: none; }
+  }
+
 </style>
 </head>
 <body data-dim="3d">

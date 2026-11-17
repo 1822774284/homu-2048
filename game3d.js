@@ -65,6 +65,8 @@
     // 画面瞬间转 180°（拖到顶/底时“直接变方向”）。
     const TARGET = new THREE.Vector3(0, 0, 0)
     let camRadius = N >= 4 ? 13.5 : 11
+    let manualZoom = false      // 用户滚轮缩放过之后，不再被自动 fitRadius 覆盖
+    let explode = EXPLODE_GAP   // 分层间距（fitRadius 会用到，必须早于第一次 applyCam）
     const cam = { yaw: 0.62, pitch: 0.6 }
     // 视角可由查询串固定，便于按角度复现（?yaw=0.62&pitch=-0.6&radius=11）
     {
@@ -95,16 +97,68 @@
     }
     const deg = (r) => `${(r * 180 / Math.PI).toFixed(1)}°`
 
+    /** 按当前屏幕比例算出“刚好装下整个棋盘”的机位距离。
+     *  固定公式算不准：棋盘是斜着看的立方体，投影宽度随 yaw 变化，
+     *  所以直接拿八个角投影到 NDC，迭代反推距离；再对 4 个 yaw 取最坏值，
+     *  这样在手机上转视角也不会把方块顶出屏幕。 */
+    const fitCam = new THREE.PerspectiveCamera(38, 1, 0.1, 200)
+    function maxExtent (radius, yaw, shift) {
+      const cp = Math.cos(cam.pitch)
+      const sp = Math.sin(cam.pitch)
+      const cy = Math.cos(yaw)
+      const sy = Math.sin(yaw)
+      fitCam.fov = camera.fov
+      fitCam.aspect = camera.aspect
+      fitCam.updateProjectionMatrix()
+      fitCam.position.set(radius * cp * sy, radius * sp, radius * cp * cy)
+      fitCam.up.set(-sp * sy, cp, -sp * cy)
+      fitCam.lookAt(TARGET.x, TARGET.y + shift, TARGET.z)
+      fitCam.updateMatrixWorld()
+      const half = (N - 1) / 2
+      const hx = half * SPACING + TILE * 0.75
+      const hy = half * SPACING * explode + TILE * 0.75
+      let m = 0
+      for (const x of [-hx, hx]) {
+        for (const y of [-hy, hy]) {
+          for (const z of [-hx, hx]) {
+            const p = new THREE.Vector3(x, y, z).project(fitCam)
+            m = Math.max(m, Math.abs(p.x), Math.abs(p.y))
+          }
+        }
+      }
+      return m
+    }
+    function fitRadius () {
+      const shift = targetShift()
+      const portrait = camera.aspect < 1
+      const target = portrait ? 0.90 : 0.94   // 占屏幕比例，留边给阴影与描边
+      // 竖屏时转视角会让投影宽度变化很大，按 4 个 yaw 取最坏值；横屏按当前 yaw 即可，不然白缩一圈
+      const yaws = portrait ? [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.75] : [0]
+      let worst = 6
+      for (const dYaw of yaws) {
+        let r = 14
+        for (let i = 0; i < 3; i++) {
+          const m = maxExtent(r, cam.yaw + dYaw, shift)
+          r = Math.min(46, Math.max(6, r * (m / target)))
+        }
+        worst = Math.max(worst, r)
+      }
+      return worst
+    }
+    // 竖屏上标题栏占掉顶部一截，把看的目标点抬高一点，棋盘就整体下移
+    const targetShift = () => (camera.aspect < 0.8 ? 0.55 : 0)
+
     function applyCam () {
       const cp = Math.cos(cam.pitch)
       const sp = Math.sin(cam.pitch)
       const cy = Math.cos(cam.yaw)
       const sy = Math.sin(cam.yaw)
+      if (!manualZoom) camRadius = fitRadius()
       camera.position.set(camRadius * cp * sy, camRadius * sp, camRadius * cp * cy)
       // up = 绕 Y 转 yaw、绕 X 转 -pitch 之后的 (0,1,0)，恒与视线垂直且单位长。
       // |pitch| < 90° 时它与 lookAt 配 (0,1,0) 的结果完全一致，只有过极点才不同。
       camera.up.set(-sp * sy, cp, -sp * cy)
-      camera.lookAt(TARGET)
+      camera.lookAt(TARGET.x, TARGET.y + targetShift(), TARGET.z)
       camera.updateMatrixWorld()
       if (debugEl) debugEl.textContent = `yaw ${deg(cam.yaw)}  pitch ${deg(cam.pitch)}  r ${camRadius.toFixed(1)}`
       if (apiRef && apiRef.onAxes) apiRef.onAxes(axesScreen())
@@ -157,7 +211,7 @@
     /* ---------- 几何与材质 ---------- */
     const geo = HomuRender.roundedBox(TILE, RADIUS, SEGMENTS)
     const matCache = new Map()
-    let explode = EXPLODE_GAP
+    // explode 必须早于第一次 applyCam()（fitRadius 要按分层高度算距离），所以提到前面声明
 
     function materialFor (value) {
       const abs = Math.abs(value)
@@ -652,10 +706,11 @@
       q: 'z-', e: 'z+', Q: 'z-', E: 'z+',
     }
 
-    /** 视角复位：回到默认机位。V 键和底部按钮共用。 */
+    /** 视角复位：回到默认机位（并交还给自动适配）。V 键和底部按钮共用。 */
     function resetView () {
       cam.yaw = 0.62
       cam.pitch = 0.6
+      manualZoom = false
       camRadius = N >= 4 ? 13.5 : 11
       applyCam()
     }
@@ -720,6 +775,7 @@
     renderer.domElement.addEventListener('pointercancel', end)
     renderer.domElement.addEventListener('wheel', (e) => {
       e.preventDefault()
+      manualZoom = true
       camRadius = Math.max(5, Math.min(26, camRadius + Math.sign(e.deltaY) * 0.6))
       applyCam()
     }, { passive: false })
@@ -727,7 +783,8 @@
       camera.aspect = innerWidth / innerHeight
       camera.updateProjectionMatrix()
       renderer.setSize(innerWidth, innerHeight)
-      requestRender()
+      // 旋转屏幕 / 拉窗口：重新按比例适配机位（用户手动缩放过就尊重用户）
+      applyCam()
     })
 
     const api = {
