@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark">
+<title>吼姆 2048 · 立方体（3×3×3）</title>
+<style>
+  :root { --bg:#0a1020; --fg:#e2e8f0; --dim:#93a4bd; --gold:#fbbf24; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; grid-template-rows: auto 1fr auto;
+    background: radial-gradient(1000px 600px at 50% 0%, #16264a 0%, transparent 60%), var(--bg);
+    color: var(--fg); font: 14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    user-select: none; overflow: hidden;
+  }
+  header { display:flex; align-items:flex-end; justify-content:space-between; padding:14px 18px 0; }
+  h1 { margin:0; font-size:22px; letter-spacing:.05em; }
+  h1 em { color:var(--gold); font-style:normal; }
+  .sub { margin:2px 0 0; color:var(--dim); font-size:12px; }
+  .stats { display:flex; gap:8px; }
+  .stat { padding:5px 10px; border:1px solid rgba(148,163,184,.18); border-radius:10px; background:rgba(17,26,46,.9); text-align:right; }
+  .stat span { display:block; color:var(--dim); font-size:10px; letter-spacing:.1em; }
+  .stat b { font-size:16px; font-variant-numeric:tabular-nums; }
+
+  .stage { position:relative; display:grid; place-items:center; perspective:1400px; perspective-origin:50% 46%; cursor:grab; }
+  .stage.dragging { cursor:grabbing; }
+  .bot-badge {
+    position:fixed; left:18px; bottom:44px; padding:5px 10px; border-radius:999px;
+    background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.45);
+    color:#7dd3fc; font-size:12px; letter-spacing:.04em;
+  }
+  .layer-tag {
+    position:absolute; left:0; top:0; width:44px; margin-left:-22px;
+    text-align:center; font:700 11px/1 "Segoe UI", system-ui, sans-serif;
+    color:#93a4bd; letter-spacing:.08em; pointer-events:none;
+    text-shadow:0 1px 2px rgba(0,0,0,.8);
+  }
+  .triad {
+    position:fixed; right:16px; bottom:48px; width:96px; height:96px;
+    background:rgba(17,26,46,.72); border:1px solid rgba(148,163,184,.22);
+    border-radius:12px; padding:4px; pointer-events:none;
+  }
+  .triad line { stroke-width:2.5; stroke-linecap:round; }
+  .triad text { font: 700 11px "Segoe UI", system-ui, sans-serif; }
+  .triad .ax-x { stroke:#f87171; }
+  .triad .ax-y { stroke:#4ade80; }
+  .triad .ax-z { stroke:#60a5fa; }
+  .triad .ax-x-label { fill:#f87171; }
+  .triad .ax-y-label { fill:#4ade80; }
+  .triad .ax-z-label { fill:#60a5fa; }
+  .world { position:relative; width:0; height:0; transform:rotateX(-22deg) rotateY(-34deg) scale(1.25); transform-style:preserve-3d; }
+
+  .cell {
+    position:absolute; width:54px; height:54px; margin:-27px 0 0 -27px;
+    transform-style:preserve-3d; transition:opacity .18s ease, transform .25s ease;
+  }
+  .cell[data-dim="1"] { opacity:.4; }
+  .face {
+    position:absolute; inset:0; border:1px solid rgba(148,163,184,.5);
+    background:rgba(27,39,66,.30); border-radius:11px; backface-visibility:hidden;
+  }
+
+  .tile {
+    position:absolute; width:54px; height:54px; margin:-27px 0 0 -27px;
+    transform-style:preserve-3d;
+    transition: transform .16s cubic-bezier(.2,.7,.2,1), opacity .18s ease;
+  }
+  .tile[data-dim="1"] { opacity:.45; }
+  .tile .face {
+    display:grid; place-items:center; background:var(--tone,#38bdf8);
+    border:0; border-radius:2px; color:#0b1220;
+    font-weight:700; font-size:19px;
+    inset:-0.5px; /* 半像素外扩，只用来消掉抗锯齿缝 */
+    box-shadow: none;
+  }
+  .tile .f-top { background-image: linear-gradient(155deg, rgba(255,255,255,.32), rgba(255,255,255,0) 62%); }
+  .tile .f-front { background-image: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.06)); }
+  .tile .f-right { background-image: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.10)); }
+  .tile .f-bottom { filter:brightness(.62); }
+  .tile .f-left, .tile .f-right { filter:brightness(.8); }
+  .tile .f-back { filter:brightness(.55); }
+  .tile .f-front { filter:brightness(1.02); }
+  .tile .f-top { filter:brightness(1.08); }
+  .tile[data-special="1"] .f-top { outline:2px dashed rgba(15,23,42,.6); outline-offset:-7px; }
+  .f-top { transform:rotateX(90deg) translateZ(27px); }
+  .f-bottom { transform:rotateX(-90deg) translateZ(27px); }
+  .f-front { transform:translateZ(27px); }
+  .f-back { transform:rotateY(180deg) translateZ(27px); }
+  .f-left { transform:rotateY(-90deg) translateZ(27px); }
+  .f-right { transform:rotateY(90deg) translateZ(27px); }
+
+  .tile.pop { animation: pop .18s ease; }
+  @keyframes pop {
+    0% { transform: scale(.7); }
+    100% { transform: scale(1); }
+  }
+
+  .layer-plate {
+    position:absolute; left:0; top:0; border-radius:16px;
+    background:rgba(56,189,248,.07); border:1px solid rgba(56,189,248,.5);
+    box-shadow:0 0 26px rgba(56,189,248,.25) inset;
+    transform-style:preserve-3d; backface-visibility:visible; pointer-events:none;
+    transition:transform .2s ease;
+  }
+
+  footer { padding:0 18px 14px; color:var(--dim); font-size:12px; display:flex; justify-content:space-between; }
+  .over { position:fixed; inset:0; display:none; place-items:center; background:rgba(5,10,20,.78); backdrop-filter:blur(4px); text-align:center; z-index:9; }
+  .over[data-on="1"] { display:grid; }
+  .over strong { display:block; font-size:20px; margin-bottom:6px; }
+  .over small { color:var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1><em>吼姆</em> 2048 · 立方体</h1>
+    <p class="sub">方向键 4 向 · Q/E 走层深 · X 切层 · L 分层 · 拖空白转视角 · R 重开</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>SIZE</span><b id="size">3³</b></div>
+    <div class="stat"><span>SCORE</span><b id="score">0</b></div>
+    <div class="stat"><span>STEPS</span><b id="steps">0</b></div>
+  </div>
+</header>
+
+<div class="stage" id="stage"><div class="world" id="world"></div></div>
+<svg class="triad" id="triad" viewBox="-46 -46 92 92">
+  <line class="ax-x" id="ax-x" x1="0" y1="0" x2="0" y2="0" />
+  <line class="ax-y" id="ax-y" x1="0" y1="0" x2="0" y2="0" />
+  <line class="ax-z" id="ax-z" x1="0" y1="0" x2="0" y2="0" />
+  <text class="ax-x-label" id="lx" x="0" y="0">X</text>
+  <text class="ax-y-label" id="ly" x="0" y="0">Y</text>
+  <text class="ax-z-label" id="lz" x="0" y="0">Z</text>
+</svg>
+
+<footer>
+  <span>特殊块：虚线框，只能与同值特殊块合并，合并即消失。</span>
+  <span id="layer">焦点层 z=1</span>
+</footer>
+
+<div class="over" id="over">
+  <div><strong id="overTitle">结束</strong><small id="overSub">按 R 重开</small></div>
+</div>
+
+<script src="./engine3d.js"></script>
+<script src="./solver3d.js"></script>
+<script>
+(() => {
+  const N = 3
+  const GAP = 72
+  const STEP_LIMIT = 200
+  const model = makeEngine(N, { specialChance: 0.06, stepLimit: STEP_LIMIT })
+  const world = document.getElementById('world')
+  const scoreEl = document.getElementById('score')
+  const stepsEl = document.getElementById('steps')
+  const layerEl = document.getElementById('layer')
+  const overEl = document.getElementById('over')
+  const overTitle = document.getElementById('overTitle')
+  const overSub = document.getElementById('overSub')
+
+  const TONES = {
+    2:'#cbd5e1', 4:'#94a3b8', 8:'#7dd3fc', 16:'#38bdf8', 32:'#0ea5e9',
+    64:'#2563eb', 128:'#6d28d9', 256:'#7c3aed', 512:'#a21caf', 1024:'#db2777', 2048:'#fbbf24',
+  }
+
+  const toX = (x) => (x - (N - 1) / 2) * GAP
+  let explode = 1.75 // 1 = 紧凑立方；>1 = 分层爆开
+  const toY = (z) => -((z - (N - 1) / 2) * GAP * explode)
+  const toZ = (y) => (y - (N - 1) / 2) * GAP
+  const at = (x, y, z) => `translate3d(${toX(x)}px, ${toY(z)}px, ${toZ(y)}px)`
+  const key = (x, y, z) => `${x},${y},${z}`
+
+  /* ---------- 静态格位（只画线框） ---------- */
+  const cellEls = []
+  for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const el = document.createElement('div')
+    el.className = 'cell'
+    el.style.transform = at(x, y, z)
+    for (const f of ['top','bottom','front','back','left','right']) {
+      const face = document.createElement('div')
+      face.className = `face f-${f}`
+      el.appendChild(face)
+    }
+    world.appendChild(el)
+    cellEls.push({ el, x, y, z })
+  }
+
+  /* ---------- 焦点层高亮板 ---------- */
+  const plate = document.createElement('div')
+  plate.className = 'layer-plate'
+  const plateSize = (N - 1) * GAP + 64
+  plate.style.width = `${plateSize}px`
+  plate.style.height = `${plateSize}px`
+  plate.style.left = `${-plateSize / 2}px`
+  plate.style.top = `${-plateSize / 2}px`
+  world.appendChild(plate)
+
+  /* ---------- 层号牌（始终朝向相机） ---------- */
+  const tags = []
+  for (let z = 0; z < N; z++) {
+    const tag = document.createElement('div')
+    tag.className = 'layer-tag'
+    tag.textContent = `z=${z}`
+    world.appendChild(tag)
+    tags.push({ el: tag, z })
+  }
+
+  /* ---------- 方块 ---------- */
+  const tiles = new Map()
+  let focusLayer = 1
+  let busy = false
+
+  function makeTileEl (value) {
+    const el = document.createElement('div')
+    el.className = 'tile'
+    for (const f of ['top','bottom','front','back','left','right']) {
+      const face = document.createElement('div')
+      face.className = `face f-${f}`
+      el.appendChild(face)
+    }
+    el.dataset.dim = '0'
+    el.dataset.special = value < 0 ? '1' : '0'
+    const abs = Math.abs(value)
+    el.dataset.v = String(abs)
+    el.style.setProperty('--tone', TONES[abs] || '#fbbf24')
+    const label = abs >= 2048 ? '吼姆' : String(abs)
+    for (const face of el.children) face.textContent = label
+    return el
+  }
+
+  function addTile (x, y, z, value, pop = false) {
+    const el = makeTileEl(value)
+    el.style.transform = at(x, y, z)
+    el.classList.add('pop')
+    world.appendChild(el)
+    tiles.set(key(x, y, z), { el, x, y, z, value })
+    if (!pop) el.classList.remove('pop')
+  }
+
+  function moveTile (tile, x, y, z) {
+    tile.x = x; tile.y = y; tile.z = z
+    tile.el.style.transform = at(x, y, z)
+  }
+
+  /* ---------- 状态与绘制 ---------- */
+  let state = model.newGame()
+  let pendingTimers = []
+
+  function paintHud () {
+    scoreEl.textContent = String(state.score)
+    stepsEl.textContent = String(state.steps)
+    layerEl.textContent = `焦点层 z=${focusLayer}`
+    plate.style.transform = `translate3d(0, ${toY(focusLayer)}px, 0) rotateX(90deg)`
+    for (const { el, z } of cellEls) el.dataset.dim = z === focusLayer ? '0' : '1'
+    for (const tile of tiles.values()) tile.el.dataset.dim = (tile.z === focusLayer || explode > 1.2) ? '0' : '1'
+    if (state.over) {
+      overTitle.textContent = state.limitHit ? '步数用尽' : '无路可走'
+      overSub.textContent = `本局 ${state.score} 分 · ${state.steps} 步 · 按 R 重开`
+      overEl.dataset.on = '1'
+    } else {
+      overEl.dataset.on = '0'
+    }
+  }
+
+  function rebuild (board) {
+    for (const tile of tiles.values()) tile.el.remove()
+    tiles.clear()
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const v = board[z][y][x]
+      if (v) addTile(x, y, z, v)
+    }
+    paintHud()
+  }
+
+  function finishMove (result, dir) {
+    const animating = new Set()
+    const merges = []
+    for (const m of result.motions) {
+      const from = m.from.map(([x, y, z]) => tiles.get(key(x, y, z))).filter(Boolean)
+      const to = m.to
+      if (!from.length) continue
+      if (from.length === 2) {
+        const fromKeys = from.map((t) => key(t.x, t.y, t.z))
+        merges.push({ from, fromKeys, to, value: m.value, vanish: m.value === 0 })
+        for (const t of from) {
+          moveTile(t, to.x, to.y, to.z)
+          animating.add(t)
+        }
+      } else {
+        const t = from[0]
+        tiles.delete(key(t.x, t.y, t.z))
+        moveTile(t, to.x, to.y, to.z)
+        tiles.set(key(to.x, to.y, to.z), t)
+        animating.add(t)
+      }
+    }
+
+    state.board = result.board
+    const born = model.spawn(state.board)
+    state.score += result.gained
+    state.steps += 1
+    state.over = (STEP_LIMIT > 0 && state.steps >= STEP_LIMIT) || !model.canMove(state.board)
+    state.limitHit = STEP_LIMIT > 0 && state.steps >= STEP_LIMIT
+    paintHud()
+
+    // 合并结算与新生方块，等位移动画播完
+    const timer = setTimeout(() => {
+      for (const mg of merges) {
+        for (const k of mg.fromKeys) tiles.delete(k)
+        for (const t of mg.from) t.el.remove()
+        if (!mg.vanish) addTile(mg.to.x, mg.to.y, mg.to.z, mg.value, true)
+      }
+      if (born) addTile(born[0], born[1], born[2], state.board[born[2]][born[1]][born[0]], true)
+      paintHud()
+      busy = false
+    }, 170)
+    pendingTimers.push(timer)
+  }
+
+  function go (dir, animate = true) {
+    if (state.over) return
+    if (busy) return
+    const result = model.moveDetailed(state.board, dir)
+    if (!result.moved) return
+    if (!animate) {
+      state.board = result.board
+      state.score += result.gained
+      state.steps += 1
+      model.spawn(state.board)
+      state.over = (STEP_LIMIT > 0 && state.steps >= STEP_LIMIT) || !model.canMove(state.board)
+      state.limitHit = STEP_LIMIT > 0 && state.steps >= STEP_LIMIT
+      for (const t of pendingTimers) clearTimeout(t)
+      pendingTimers = []
+      rebuild(state.board)
+      return
+    }
+    busy = true
+    finishMove(result, dir)
+  }
+
+  function restart () {
+    for (const timer of pendingTimers) clearTimeout(timer)
+    pendingTimers = []
+    busy = false
+    state = model.newGame()
+    focusLayer = 1
+    rebuild(state.board)
+  }
+
+  const DIRS = {
+    ArrowLeft:'x-', ArrowRight:'x+', ArrowDown:'y-', ArrowUp:'y+',
+    a:'x-', d:'x+', s:'y-', w:'y+', A:'x-', D:'x+', S:'y-', W:'y+',
+    q:'z-', e:'z+', Q:'z-', E:'z+',
+  }
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'r' || event.key === 'R') { restart(); return }
+    if (event.key === 'x' || event.key === 'X') {
+      event.preventDefault()
+      focusLayer = (focusLayer + 1) % N
+      paintHud()
+      return
+    }
+    const dir = DIRS[event.key]
+    if (!dir) return
+    event.preventDefault()
+    go(dir)
+  })
+
+  /* ---------- 相机：拖空白处转视角；按键固定为世界轴 ---------- */
+  const stage = document.getElementById('stage')
+  const triad = {
+    x: document.getElementById('ax-x'), y: document.getElementById('ax-y'), z: document.getElementById('ax-z'),
+    lx: document.getElementById('lx'), ly: document.getElementById('ly'), lz: document.getElementById('lz'),
+  }
+  const rad = (d) => (d * Math.PI) / 180
+  const HOME = { yaw: -34, pitch: -22 }
+  let cam = { ...HOME }
+  let drag = null
+
+  function project (v) {
+    const cy = Math.cos(rad(cam.yaw)); const sy = Math.sin(rad(cam.yaw))
+    const cx = Math.cos(rad(cam.pitch)); const sx = Math.sin(rad(cam.pitch))
+    const x1 = v[0] * cy + v[2] * sy
+    const z1 = -v[0] * sy + v[2] * cy
+    const y2 = v[1] * cx - z1 * sx
+    return { x: x1, y: -y2 }
+  }
+
+  function drawTriad () {
+    const put = (lineEl, labelEl, v) => {
+      const p = project(v)
+      const len = 30
+      lineEl.setAttribute('x2', (p.x * len).toFixed(1))
+      lineEl.setAttribute('y2', (p.y * len).toFixed(1))
+      labelEl.setAttribute('x', (p.x * (len + 10) - 3.5).toFixed(1))
+      labelEl.setAttribute('y', (p.y * (len + 10) + 4).toFixed(1))
+    }
+    // 游戏轴 → CSS 轴：x 向右、y 进屏、z 向上
+    put(triad.x, triad.lx, [1, 0, 0])
+    put(triad.y, triad.ly, [0, 0, 1])
+    put(triad.z, triad.lz, [0, -1, 0])
+  }
+
+  function applyCam () {
+    world.style.transform = `rotateX(${cam.pitch}deg) rotateY(${cam.yaw}deg) scale(1.25)`
+    drawTriad()
+    placeTags()
+  }
+
+  /** 层号牌：贴在每层前排右侧，反向旋转以保持屏幕正立。 */
+  function placeTags () {
+    const tx = toX(-(N - 1) / 2 - 1.15)
+    const tz = toZ((N - 1) / 2 + 1.0)
+    for (const t of tags) {
+      t.el.style.transform =
+        `translate3d(${tx}px, ${toY(t.z)}px, ${tz}px) rotateY(${-cam.yaw}deg) rotateX(${-cam.pitch}deg)`
+    }
+  }
+
+  /** 重新摆放所有格子、方块、高亮板与层号（爆开/紧凑切换用）。 */
+  function relayout () {
+    for (const { el, x, y, z } of cellEls) el.style.transform = at(x, y, z)
+    for (const t of tiles.values()) t.el.style.transform = at(t.x, t.y, t.z)
+    plate.style.transform = `translate3d(0, ${toY(focusLayer)}px, 0) rotateX(90deg)`
+    placeTags()
+  }
+
+  stage.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.tile')) return // 只有空白处能转视角
+    drag = { x: event.clientX, y: event.clientY, yaw: cam.yaw, pitch: cam.pitch }
+    stage.classList.add('dragging')
+    try { stage.setPointerCapture(event.pointerId) } catch { /* ignore */ }
+  })
+
+  stage.addEventListener('pointermove', (event) => {
+    if (!drag) return
+    cam.yaw = drag.yaw + (event.clientX - drag.x) * 0.4
+    cam.pitch = Math.max(-62, Math.min(-6, drag.pitch - (event.clientY - drag.y) * 0.35))
+    applyCam()
+  })
+
+  const endDrag = (event) => {
+    if (!drag) return
+    drag = null
+    stage.classList.remove('dragging')
+    try { stage.releasePointerCapture(event.pointerId) } catch { /* ignore */ }
+  }
+  stage.addEventListener('pointerup', endDrag)
+  stage.addEventListener('pointercancel', endDrag)
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'v' || event.key === 'V') {
+      cam = { ...HOME }
+      applyCam()
+    }
+    if (event.key === 'l' || event.key === 'L') {
+      explode = explode > 1.2 ? 1 : 1.75
+      relayout()
+    }
+  })
+
+  // ?cam=yaw,pitch 可指定初始视角，供截图核对
+  const camParam = new URLSearchParams(location.search).get('cam')
+  if (camParam) {
+    const [cy, cp] = camParam.split(',').map(Number)
+    if (Number.isFinite(cy)) cam.yaw = cy
+    if (Number.isFinite(cp)) cam.pitch = cp
+  }
+
+  // ?explode=0 回到紧凑立方，便于对照
+  if (new URLSearchParams(location.search).get('explode') === '0') explode = 1
+
+  applyCam()
+  relayout()
+
+  rebuild(state.board)
+
+  // ?bot=1 —— 求解器自己下，供观战
+  if (new URLSearchParams(location.search).has('bot')) {
+    const badge = document.createElement('div')
+    badge.className = 'bot-badge'
+    badge.textContent = '求解器代打中'
+    document.body.appendChild(badge)
+    const timer = setInterval(() => {
+      if (state.over) {
+        clearInterval(timer)
+        badge.textContent = `结束 · ${state.score} 分 · ${state.steps} 步`
+        return
+      }
+      const dir = window.solver3d.bestMove(model, state.board)
+      if (!dir) { clearInterval(timer); return }
+      go(dir)
+    }, 300)
+  }
+
+  // ?demo=x+,x+,y+ —— 直接结算到该状态，供截图核对
+  const demo = new URLSearchParams(location.search).get('demo')
+  if (demo) {
+    for (const dir of demo.split(',')) {
+      if (!dir) continue
+      const r = model.moveDetailed(state.board, dir)
+      if (!r.moved) continue
+      state.board = r.board
+      state.score += r.gained
+      state.steps += 1
+      model.spawn(state.board)
+      if ((STEP_LIMIT > 0 && state.steps >= STEP_LIMIT) || !model.canMove(state.board)) {
+        state.over = true
+        state.limitHit = STEP_LIMIT > 0 && state.steps >= STEP_LIMIT
+        break
+      }
+    }
+    rebuild(state.board)
+  }
+})()
+</script>
+</body>
+</html>

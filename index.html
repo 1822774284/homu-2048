@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>吼姆 2048 · 立方体 / 平面</title>
+<meta name="description" content="吼姆 2048：3×3×3、4×4×4 与经典 4×4 三套棋盘同页切换的 2048。纯静态网页，无依赖，离线可玩。">
+<meta name="theme-color" content="#0a1020">
+<meta property="og:type" content="website">
+<meta property="og:title" content="吼姆 2048 · 立方体 / 平面">
+<meta property="og:description" content="27 格六方向、64 格四层，和经典 4×4 放在同一页。纯静态，双击即玩。">
+<meta property="og:image" content="docs/ui-3d.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a1020'/%3E%3Cpath d='M32 12 52 23v18L32 52 12 41V23z' fill='none' stroke='%237dd3fc' stroke-width='4'/%3E%3Cpath d='M12 23 32 34l20-11M32 34v18' fill='none' stroke='%237dd3fc' stroke-width='4'/%3E%3C/svg%3E">
+<style>
+  html, body { margin: 0; height: 100%; background: #0a1020; overflow: hidden; color: #e2e8f0;
+    font: 14px/1.5 "Microsoft YaHei", system-ui, sans-serif; user-select: none; }
+  canvas { display: block; }
+  header {
+    position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: flex-end;
+    justify-content: space-between; padding: 14px 18px; pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,16,32,.85), rgba(10,16,32,0));
+    z-index: 10;   /* 压在平面棋盘与结算遮罩之上：任何时候都点得到维度 / 模式按钮 */
+  }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .05em; }
+  h1 em { color: #fbbf24; font-style: normal; }
+  .sub { margin: 2px 0 0; color: #93a4bd; font-size: 12px; }
+  /* 模式选择：换了模式直接开新局 */
+  .modes { display: flex; gap: 6px; align-items: center; margin-top: 9px; pointer-events: auto; }
+  .modes-hint { color: #64748b; font-size: 11px; margin-right: 1px; }
+  .mode {
+    padding: 3px 11px; border-radius: 999px; cursor: pointer;
+    background: rgba(17,26,46,.85); border: 1px solid rgba(148,163,184,.25);
+    color: #94a3b8; font: 600 12px/1.4 "Microsoft YaHei", system-ui;
+    transition: all .12s ease; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .mode:hover { color: #e2e8f0; border-color: rgba(226,232,240,.5); }
+  .mode[data-on="1"] {
+    background: rgba(56,189,248,.2); border-color: rgba(56,189,248,.65); color: #e2e8f0;
+    box-shadow: 0 0 0 1px rgba(56,189,248,.25) inset;
+  }
+  .stats { display: flex; gap: 8px; }
+  .stat { padding: 5px 10px; border: 1px solid rgba(148,163,184,.2); border-radius: 10px;
+    background: rgba(17,26,46,.85); text-align: right; }
+  .stat span { display: block; color: #93a4bd; font-size: 10px; letter-spacing: .1em; }
+  .stat b { font-size: 16px; font-variant-numeric: tabular-nums; }
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between;
+    padding: 10px 18px; color: #64748b; font-size: 12px; pointer-events: none;
+    background: linear-gradient(0deg, rgba(10,16,32,.85), rgba(10,16,32,0));
+  }
+  #triad {
+    position: fixed; right: 16px; bottom: 46px; width: 118px; height: 118px;
+    background: rgba(17,26,46,.72); border: 1px solid rgba(148,163,184,.22);
+    border-radius: 12px; pointer-events: none;
+  }
+  /* 每条半轴 = 线 + 实心箭头；正半轴粗亮，负半轴细暗。按键时整条半轴提亮加粗。 */
+  #triad .axis { opacity: var(--vis, 1); transition: opacity .1s, filter .1s; }
+  #triad .axis line { stroke: currentColor; stroke-linecap: round; transition: stroke-width .1s; }
+  #triad .axis path { fill: currentColor; }
+  #triad .pos line { stroke-width: 3.6; }
+  #triad .neg line { stroke-width: 2.4; }
+  #triad .axis.hot { opacity: 1 !important; filter: brightness(1.6) drop-shadow(0 0 3px rgba(255,255,255,.8)); }
+  #triad .axis.hot line { stroke-width: 5.4; }
+  #triad text { font: 700 11px 'Microsoft YaHei', system-ui; transition: opacity .1s; }
+  .legend {
+    position: fixed; right: 16px; bottom: 172px; display: flex; flex-direction: column;
+    gap: 4px; align-items: flex-end; pointer-events: none;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    background: rgba(17,26,46,.8); border: 1px solid rgba(148,163,184,.22);
+    color: #cbd5e1; font-size: 12px; transition: all .12s ease;
+  }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+  .chip[data-axis=x] i { background: #f87171; }
+  .chip[data-axis=y] i { background: #4ade80; }
+  .chip[data-axis=z] i { background: #60a5fa; }
+  /* 键位与半轴符号：键亮、符号跟轴线同色，一眼能分清正负 */
+  .chip .kv { display: inline-flex; align-items: center; gap: 1px; }
+  .chip .kv b { font: 700 10px/1 ui-monospace, Consolas, monospace; transform: translateY(-2px); }
+  .chip[data-axis=x] b { color: #f87171; }
+  .chip[data-axis=y] b { color: #4ade80; }
+  .chip[data-axis=z] b { color: #60a5fa; }
+  .chip .sep { width: 1px; height: 11px; background: rgba(148,163,184,.3); }
+  .chip.hit { color: #fff; border-color: rgba(226,232,240,.6); transform: scale(1.06); }
+  .over {
+    position: fixed; inset: 0; display: none; place-items: center; text-align: center;
+    background: rgba(5,10,20,.76); backdrop-filter: blur(4px); z-index: 9;
+  }
+  .over[data-on="1"] { display: grid; }
+  .over strong { display: block; font-size: 22px; margin-bottom: 6px; }
+  .over small { color: #93a4bd; }
+  /* 光标移动键：右侧中部，一条轴一行（负在左、正在右）。
+     和键盘同一套世界轴，右侧小三角指向该半轴当前在屏幕上的方向 */
+  .pad-side {
+    position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
+    display: grid; grid-template-columns: repeat(2, 58px); gap: 8px; z-index: 10;
+  }
+  /* 工具键（视角 / 回退 / 声音）留在底部居中 */
+  .pad {
+    position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 10;
+  }
+  .dir {
+    display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+    height: 40px; min-width: 58px;
+    padding: 0 9px; border-radius: 11px; cursor: pointer;
+    background: rgba(17,26,46,.86); color: #cbd5e1; font-size: 15px; line-height: 1;
+    border: 1px solid rgba(148,163,184,.28);
+    transition: background .12s, border-color .12s, transform .08s, opacity .2s;
+    touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .dir b { font: 700 10px/1 ui-monospace, Consolas, monospace; transform: translateY(-4px); }
+  .dir[data-dir^=x] { border-color: rgba(248,113,113,.38); }
+  .dir[data-dir^=y] { border-color: rgba(74,222,128,.38); }
+  .dir[data-dir^=z] { border-color: rgba(96,165,250,.38); }
+  .dir[data-dir^=x] b { color: #f87171; }
+  .dir[data-dir^=y] b { color: #4ade80; }
+  .dir[data-dir^=z] b { color: #60a5fa; }
+  .dir.act { min-width: 72px; gap: 5px; font-size: 13px; padding: 0 10px; }
+  .dir.icon { min-width: 46px; padding: 0 6px; font-size: 16px; }
+  /* 回退没得退时整颗禁用；音响开关只是变灰，必须还能点，否则关掉就开不回来 */
+  .dir.act.dim { opacity: .32; pointer-events: none; }
+  .dir.icon.muted { opacity: .5; }
+
+  .dir:hover { background: rgba(30,44,72,.95); border-color: rgba(226,232,240,.5); }
+  .dir:active, .dir.hit { background: rgba(56,189,248,.22); transform: scale(.96); }
+  .tip {
+    font-size: 9px; line-height: 1; opacity: .6; transition: transform .12s, opacity .12s;
+    display: inline-block;
+  }
+  .dir.off { opacity: .3; pointer-events: none; }
+
+  /* ---- 维度切换（左上角，2D 平面 / 3D 立方） ---- */
+  .dims { display: flex; gap: 6px; margin-bottom: 9px; pointer-events: auto; flex-wrap: wrap; }
+  .dim {
+    padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    background: rgba(17,26,46,.85); border: 1px solid rgba(148,163,184,.25);
+    color: #94a3b8; font: 600 12px/1.4 "Microsoft YaHei", system-ui;
+    transition: all .12s ease; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .dim:hover { color: #e2e8f0; border-color: rgba(226,232,240,.5); }
+  .dim[data-on="1"] {
+    background: rgba(251,191,36,.16); border-color: rgba(251,191,36,.6); color: #fde68a;
+    box-shadow: 0 0 0 1px rgba(251,191,36,.22) inset;
+  }
+
+  /* ---- 2D 棋盘：4×4 DOM 方块 ---- */
+  /* 整层都不接指针：棋盘只靠键盘，绝不能把上面的标题栏 / 药丸挡住
+     （曾经是 fixed inset:0 又没设 pointer-events，切到 2D 后整页按钮全点不动） */
+  #board2d { position: fixed; inset: 0; display: grid; place-items: center; z-index: 1; pointer-events: none; perspective: 1500px; }
+  body:not([data-dim="2d"]) #board2d { display: none; }
+  /* 平面模式下 3D 专属的东西一并收起：画布、坐标轴、六向按钮、轴徽章、视角复位 */
+  /* three 会给画布写内联 style.display="block"，所以这条必须 !important 才压得住；
+     JS 那边 setActive 也会同步收起画布，双保险 */
+  body[data-dim="2d"] > canvas,
+  body[data-dim="2d"] #triad,
+  body[data-dim="2d"] .pad-side,
+  body[data-dim="2d"] .legend,
+  body[data-dim="2d"] .pad .dir[data-act=view] { display: none !important; }
+
+  .b2 {
+    --gap: 2.4%;
+    --tilt: 0deg;       /* 2D 俯视角，?tilt=22 才会立起来（默认平铺） */
+    --lift: 10px;       /* 方块离板面的高度，JS 会按棋盘宽度换算 */
+    width: min(66vmin, 520px); aspect-ratio: 1; position: relative;
+    transform: translateY(2vh) rotateX(var(--tilt));
+    transform-style: preserve-3d;
+    /* 棋盘自己接管指针（滑动手势），但只在这块方形区域内，标题栏照常可点 */
+    pointer-events: auto; touch-action: none;
+  }
+  .b2-grid {
+    position: absolute; inset: 0; display: grid;
+    grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr);
+    gap: var(--gap); padding: var(--gap);
+    background: linear-gradient(160deg, rgba(30,44,72,.92), rgba(14,23,41,.92));
+    border-radius: 22px;
+    transform-style: preserve-3d;
+    box-shadow: 0 40px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(148,163,184,.10) inset,
+      0 1px 0 rgba(255,255,255,.06) inset;
+  }
+  /* 板子的厚度：贴在网格正下方的一层，只露出底边一点 */
+  .b2::before {
+    content: ""; position: absolute; left: 1.5%; right: 1.5%; top: 6%; bottom: -3%;
+    border-radius: 22px; background: #0b1424;
+    transform: translateZ(-14px);
+    box-shadow: 0 30px 50px rgba(0,0,0,.5);
+  }
+  .b2-slot {
+    border-radius: 14px; background: #141f36;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.55), inset 0 -1px 0 rgba(255,255,255,.04);
+  }
+  .b2-tiles { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .b2-tile {
+    position: absolute; width: 22%; height: 22%;
+    left: calc(var(--gap) + var(--c) * 24.4%);
+    top: calc(var(--gap) + var(--r) * 24.4%);
+    border-radius: 14px; display: grid; place-items: center;
+    font: 700 clamp(16px, 6.2vmin, 42px)/1 "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums; color: #0b1220;
+    /* 抬离板面 + 侧面厚度靠投影伪装，斜看时就有体积 */
+    transform: translateZ(var(--lift));
+    box-shadow: 0 7px 0 rgba(0,0,0,.32), 0 16px 26px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.22);
+    transition: left .11s ease-out, top .11s ease-out, transform .11s ease-out, background .12s ease;
+    will-change: left, top, transform;
+  }
+  .b2-tile[data-v="2"] { background: #cbd5e1; }
+  .b2-tile[data-v="4"] { background: #94a3b8; }
+  .b2-tile[data-v="8"] { background: #7dd3fc; }
+  .b2-tile[data-v="16"] { background: #38bdf8; }
+  .b2-tile[data-v="32"] { background: #0ea5e9; color: #f8fafc; }
+  .b2-tile[data-v="64"] { background: #2563eb; color: #f8fafc; }
+  .b2-tile[data-v="128"] { background: #6d28d9; color: #f8fafc; }
+  .b2-tile[data-v="256"] { background: #7c3aed; color: #f8fafc; }
+  .b2-tile[data-v="512"] { background: #a21caf; color: #f8fafc; }
+  .b2-tile[data-v="1024"] { background: #db2777; color: #f8fafc; }
+  .b2-tile[data-v="2048"] { background: linear-gradient(145deg, #f59e0b, #fbbf24); color: #1f2937; }
+  .b2-tile[data-digits="3"] { font-size: clamp(14px, 5.2vmin, 35px); }
+  .b2-tile[data-digits="4"] { font-size: clamp(12px, 4.4vmin, 29px); }
+  .b2-tile.merging { transform: translateZ(var(--lift)) scale(.72); z-index: 2; }
+  @keyframes b2pop {
+    0% { transform: translateZ(var(--lift)) scale(.55); }
+    60% { transform: translateZ(calc(var(--lift) + 5px)) scale(1.06); }
+    100% { transform: translateZ(var(--lift)) scale(1); }
+  }
+  .b2-tile.pop { animation: b2pop .18s ease-out; }
+
+</style>
+</head>
+<body data-dim="3d">
+<div id="board2d"></div>
+<header>
+  <div>
+    <div class="dims" id="dims">
+      <button class="dim" data-dim="2d">2D 平面</button>
+      <button class="dim" data-dim="3d">3D 3×3×3</button>
+      <button class="dim" data-dim="3d4">3D 4×4×4</button>
+    </div>
+    <h1><em>吼姆</em> 2048 · <span id="dimName">立方体</span></h1>
+    <p class="sub" id="sub">方向键 4 向 · Q/E 走层深 · L 分层 · V 视角复位 · M 静音 · 拖拽转视角 · R 重开</p>
+    <div class="modes" id="modes">
+      <span class="modes-hint">步数</span>
+      <button class="mode" data-limit="100">100</button>
+      <button class="mode" data-limit="200">200</button>
+      <button class="mode" data-limit="400">400</button>
+      <button class="mode" data-limit="0">∞</button>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>SCORE</span><b id="score">0</b></div>
+    <div class="stat"><span>STEPS</span><b id="steps">0</b></div>
+    <div class="stat"><span>MAX</span><b id="peak">—</b></div>
+    <div class="stat"><span>BEST</span><b id="best">0</b></div>
+  </div>
+</header>
+
+<footer>
+  <span id="footHint">特殊块：虚线框标记，只能与同值特殊块合并，合并即消失</span>
+  <span>步数上限 <b id="limitText">200</b></span>
+</footer>
+
+<div class="pad-side" id="pad-side">
+  <button class="dir" data-dir="x-">←<b>−</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="x+">→<b>+</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="y-">↓<b>−</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="y+">↑<b>+</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="z-">Q<b>−</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="z+">E<b>+</b><span class="tip">▶</span></button>
+</div>
+
+<div class="pad" id="pad">
+  <button class="dir act" data-act="view" title="视角复位（V）">⟲ 视角</button>
+  <button class="dir act" data-act="undo" title="回退一步（Ctrl+Z）">↶ 回退</button>
+  <button class="dir act icon" data-act="sound" title="音效开关（M）">🔊</button>
+</div>
+
+<div class="legend">
+  <span class="chip" data-axis="x"><i></i><span class="kv">←<b>−</b></span><span class="sep"></span><span class="kv">→<b>+</b></span></span>
+  <span class="chip" data-axis="y"><i></i><span class="kv">↓<b>−</b></span><span class="sep"></span><span class="kv">↑<b>+</b></span></span>
+  <span class="chip" data-axis="z"><i></i><span class="kv">Q<b>−</b></span><span class="sep"></span><span class="kv">E<b>+</b></span></span>
+</div>
+<svg id="triad" viewBox="-60 -60 120 120">
+  <g class="axis neg" id="axg-xn" data-half="x-" style="color:#f87171">
+    <line id="ax-xn" x1="0" y1="0" x2="0" y2="0" /><path id="ah-xn" d="" />
+  </g>
+  <g class="axis neg" id="axg-yn" data-half="y-" style="color:#4ade80">
+    <line id="ax-yn" x1="0" y1="0" x2="0" y2="0" /><path id="ah-yn" d="" />
+  </g>
+  <g class="axis neg" id="axg-zn" data-half="z-" style="color:#60a5fa">
+    <line id="ax-zn" x1="0" y1="0" x2="0" y2="0" /><path id="ah-zn" d="" />
+  </g>
+  <g class="axis pos" id="axg-x" data-half="x+" style="color:#f87171">
+    <line id="ax-x" x1="0" y1="0" x2="0" y2="0" /><path id="ah-x" d="" />
+  </g>
+  <g class="axis pos" id="axg-y" data-half="y+" style="color:#4ade80">
+    <line id="ax-y" x1="0" y1="0" x2="0" y2="0" /><path id="ah-y" d="" />
+  </g>
+  <g class="axis pos" id="axg-z" data-half="z+" style="color:#60a5fa">
+    <line id="ax-z" x1="0" y1="0" x2="0" y2="0" /><path id="ah-z" d="" />
+  </g>
+  <circle r="2.6" fill="#94a3b8" opacity=".7" />
+  <text id="lx" fill="#f87171">X+</text>
+  <text id="ly" fill="#4ade80">Y+</text>
+  <text id="lz" fill="#60a5fa">Z+</text>
+</svg>
+<div class="over" id="over">
+  <div><strong id="overTitle">结束</strong><small id="overSub">按 R 重开</small></div>
+</div>
+
+<script src="./vendor/three.min.js"></script>
+<script src="./engine3d.js"></script>
+<script src="./engine2d.js"></script>
+<script src="./render3d.js"></script>
+<script src="./audio.js"></script>
+<script src="./game3d.js"></script>
+<script src="./game2d.js"></script>
+<script src="./solver3d.js"></script>
+<script>
+(() => {
+  const qs = new URLSearchParams(location.search)
+  const store = (() => {
+    try {
+      localStorage.setItem('__homu_probe__', '1')
+      localStorage.removeItem('__homu_probe__')
+      return localStorage
+    } catch { return null }
+  })()
+  const noSave = qs.has('demo') || qs.has('bot') || qs.has('seed') || qs.has('sim')
+
+  // 三个档位各自是一局完整对局，共用这一页的 HUD / 回退 / 音效 / 模式药丸。
+  // 3×3×3 的 WebGL 场景常驻；4×4×4 等第一次切过去才建，免得白占一个 GL 上下文。
+  const g3 = HomuGame.createGame(document.body, { n: 3 })
+  const g2 = HomuGame2d.createGame2d(document.getElementById('board2d'))
+  let g4 = null
+
+  const DIMS = ['2d', '3d', '3d4']
+  let dim = DIMS.includes(qs.get('dim'))
+    ? qs.get('dim')
+    : (DIMS.includes(store && store.getItem('homu3d.dim.v1')) ? store.getItem('homu3d.dim.v1') : '3d')
+
+  function ensure444 () {
+    if (!g4) {
+      g4 = HomuGame.createGame(document.body, { n: 4 })
+      g4.onHud = hud
+      g4.onAxes = renderAxes
+      g4.onKey = feedback
+      if (window.HomuAudio) g4.onSound = setSoundIcon
+      g4.setActive(false)
+      g4.onAxes(g4.axesScreen())
+    }
+    return g4
+  }
+  function active () {
+    if (dim === '2d') return g2
+    if (dim === '3d4') return ensure444()
+    return g3
+  }
+  // 当前生效的 3D 实现（2D 下为 null）
+  function three () {
+    if (dim === '3d') return g3
+    if (dim === '3d4') return ensure444()
+    return null
+  }
+
+  const scoreEl = document.getElementById('score')
+  const stepsEl = document.getElementById('steps')
+  const peakEl = document.getElementById('peak')
+  const bestEl = document.getElementById('best')
+  const overEl = document.getElementById('over')
+  const overTitle = document.getElementById('overTitle')
+  const overSub = document.getElementById('overSub')
+  const limitText = document.getElementById('limitText')
+  const modeBtns = [...document.querySelectorAll('.mode')]
+
+  const hud = (h) => {
+    scoreEl.textContent = String(h.score)
+    // 无限模式（limit 0）只显示步数，不显示 /0
+    stepsEl.textContent = h.limit > 0 ? `${h.steps}/${h.limit}` : String(h.steps)
+    peakEl.textContent = h.peak ? String(h.peak) : '—'
+    bestEl.textContent = String(h.best || 0)
+    limitText.textContent = h.limit > 0 ? String(h.limit) : '无限'
+    for (const b of modeBtns) b.dataset.on = Number(b.dataset.limit) === h.limit ? '1' : '0'
+    // 局终时方向键变灰，但“回退”要留着——正好用来救回死局
+    for (const { el } of PAD) el.classList.toggle('off', !!h.over)
+    undoBtn.classList.toggle('dim', !h.canUndo)
+    if (h.over) {
+      overTitle.textContent = (h.limit > 0 && h.steps >= h.limit) ? '步数用尽' : '无路可走'
+      overSub.textContent = `本局 ${h.score} 分 · ${h.steps} 步 · 最高 ${h.best} 分 · 按 R 重开`
+      overEl.dataset.on = '1'
+    } else {
+      overEl.dataset.on = '0'
+    }
+  }
+  g3.onHud = hud
+  g2.onHud = hud
+
+  /* ---------- 维度切换 ---------- */
+  const dimBtns = [...document.querySelectorAll('.dim')]
+  const dimName = document.getElementById('dimName')
+  const subEl = document.getElementById('sub')
+  const footEl = document.getElementById('footHint')
+  const TITLE = { '3d': '立方体 3×3×3', '3d4': '立方体 4×4×4', '2d': '平面' }
+  const SUB = {
+    '3d': '方向键 4 向 · Q/E 走层深 · L 分层 · V 视角复位 · M 静音 · 拖拽转视角 · R 重开',
+    '3d4': '同一套六向操作 · 64 格 · 4 层 · L 分层 · V 视角复位 · R 重开',
+    '2d': '方向键 / WASD 移动 · 标准 4×4 · Ctrl+Z 回退 · M 静音 · R 重开',
+  }
+  const FOOT = {
+    '3d': '特殊块：虚线框标记，只能与同值特殊块合并，合并即消失',
+    '3d4': '4×4×4：64 格 · 存档与最高分和 3×3×3 分开记',
+    '2d': '平面 4×4 · 与立方版分开记最高分，存档与步数模式各自独立',
+  }
+  /** 模式药丸跟着当前棋盘走：3×3×3 是 100/200/400，4×4×4 整体上移到 200/400/800。 */
+  function syncModePills (game) {
+    const modes = (game && game.modes) || [100, 200, 400, 0]
+    modeBtns.forEach((b, i) => {
+      const v = modes[i]
+      b.dataset.limit = String(v)
+      b.textContent = v ? String(v) : '∞'
+    })
+  }
+  function applyDim () {
+    document.body.dataset.dim = dim
+    for (const b of dimBtns) b.dataset.on = b.dataset.dim === dim ? '1' : '0'
+    dimName.textContent = TITLE[dim]
+    subEl.textContent = SUB[dim]
+    footEl.textContent = FOOT[dim]
+    // 先拿到当前实现（必要时才创建 4×4×4），再统一设置谁活着——否则新建的 g4 会被置成失活
+    const game = active()
+    g3.setActive(dim === '3d')
+    g2.setActive(dim === '2d')
+    if (g4) g4.setActive(dim === '3d4')
+    if (!noSave && store) { try { store.setItem('homu3d.dim.v1', dim) } catch { /* ignore */ } }
+    syncModePills(game)
+    game.rebuild()
+  }
+  for (const b of dimBtns) {
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      if (b.dataset.dim === dim) return
+      dim = b.dataset.dim
+      applyDim()
+    })
+  }
+
+  // 模式选择：直接开新局；每个棋盘各记各的上限
+  for (const b of modeBtns) {
+    b.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      active().setLimit(Number(b.dataset.limit))
+    })
+  }
+  // 坐标轴：三轴投影到屏幕（X 红 / Y 绿 = 纵深 / Z 蓝 = 向上）
+  // 每条半轴都画成“线 + 实心箭头”，共六个箭头；正半轴粗亮并带 X+/Y+/Z+ 标签，
+  // 负半轴细一点、暗一点。按键时对应那条整组提亮加粗。
+  const AXIS_OF = { x: 'x', y: 'z', z: 'y' } // 游戏轴 → three 轴
+  const L_POS = 36
+  const L_NEG = 24
+  const AH = 7.2   // 箭头长度
+  const AW = 4.6   // 箭头半宽
+  const AXES = ['x', 'y', 'z'].map((ax) => ({
+    ax,
+    pos: {
+      g: document.getElementById(`axg-${ax}`),
+      line: document.getElementById(`ax-${ax}`),
+      arrow: document.getElementById(`ah-${ax}`),
+    },
+    neg: {
+      g: document.getElementById(`axg-${ax}n`),
+      line: document.getElementById(`ax-${ax}n`),
+      arrow: document.getElementById(`ah-${ax}n`),
+    },
+    label: document.getElementById(`l${ax}`),
+  }))
+  // 光标按钮：与键盘同一套世界轴。右侧小三角按当前机位旋转，
+  // 直接告诉玩家“按这个，块会往屏幕哪边走”。
+  const PAD = [...document.querySelectorAll('.pad-side .dir[data-dir]')].map((el) => ({
+    el, dir: el.dataset.dir, tip: el.querySelector('.tip'),
+  }))
+  const viewBtn = document.querySelector('.pad .dir[data-act=view]')
+  const undoBtn = document.querySelector('.pad .dir[data-act=undo]')
+  const soundBtn = document.querySelector('.pad .dir[data-act=sound]')
+
+  /** 把一条半轴画成方向 (ux,uy)、长 L 的线 + 实心三角箭头。
+   *  L 短的时候箭头也同比缩小，否则箭头会比杆还长，看着像一坨。 */
+  function drawHalf (half, ux, uy, L) {
+    const ah = Math.min(AH, L * 0.5)
+    const tipX = ux * L
+    const tipY = uy * L
+    const bx = tipX - ux * ah
+    const by = tipY - uy * ah
+    half.line.setAttribute('x2', bx.toFixed(1))
+    half.line.setAttribute('y2', by.toFixed(1))
+    const nx = -uy
+    const ny = ux
+    const aw = AW * (ah / AH)
+    half.arrow.setAttribute('d',
+      `M${tipX.toFixed(1)} ${tipY.toFixed(1)} ` +
+      `L${(bx + nx * aw).toFixed(1)} ${(by + ny * aw).toFixed(1)} ` +
+      `L${(bx - nx * aw).toFixed(1)} ${(by - ny * aw).toFixed(1)} Z`)
+  }
+
+  function renderAxes (a) {
+    for (const it of AXES) {
+      const p = a[AXIS_OF[it.ax]]
+      // |p| 是这根轴在屏幕平面上的投影长度（0..1），本身就带着透视缩短：
+      // 从正上方看时 Z 会缩到接近 0，这才是 3D 坐标轴该有的样子。
+      const len = Math.min(1, Math.hypot(p.x, p.y))
+      const ux = len > 1e-6 ? p.x / len : 1
+      const uy = len > 1e-6 ? p.y / len : 0
+      // 轴几乎正对镜头：方向没意义，整组藏掉，免得画出一根指向随机方向的满长箭头
+      const invisible = len < 0.09
+      it.pos.g.style.display = invisible ? 'none' : ''
+      it.neg.g.style.display = invisible ? 'none' : ''
+      it.label.style.display = invisible ? 'none' : ''
+      if (invisible) continue
+      drawHalf(it.pos, ux, uy, L_POS * len)
+      drawHalf(it.neg, -ux, -uy, L_NEG * len)
+      const vis = Math.min(1, len / 0.22)
+      it.pos.g.style.setProperty('--vis', vis.toFixed(2))
+      it.neg.g.style.setProperty('--vis', (vis * 0.55).toFixed(2))
+      it.label.setAttribute('x', (ux * (L_POS * len + 12) - 7).toFixed(1))
+      it.label.setAttribute('y', (uy * (L_POS * len + 12) + 4).toFixed(1))
+      it.label.style.opacity = vis.toFixed(2)
+    }
+    for (const { tip, dir } of PAD) {
+      const p = a[AXIS_OF[dir[0]]]
+      const s = dir[1] === '+' ? 1 : -1
+      const vx = p.x * s
+      const vy = p.y * s
+      const len = Math.hypot(vx, vy)
+      if (len < 0.2) {
+        // 这根轴几乎正对镜头，屏幕上看不出方向，藏起指南针
+        tip.style.opacity = '0'
+        continue
+      }
+      tip.style.opacity = String(0.45 + 0.5 * Math.min(1, len))
+      tip.style.transform = `rotate(${(Math.atan2(vy, vx) * 180 / Math.PI).toFixed(0)}deg)`
+    }
+  }
+  // 初始画一次坐标轴（相机建好时回调还没挂上）
+  g3.onAxes = renderAxes
+  g3.onAxes(g3.axesScreen())
+
+  // 按键时点亮对应半轴：方向键 ↔ 正负半轴的关系直接看得见
+  const HALF = {}
+  for (const it of AXES) {
+    HALF[`${it.ax}+`] = it.pos.g
+    HALF[`${it.ax}-`] = it.neg.g
+  }
+  let hotTimer = null
+  const feedback = (dir) => {
+    const axis = dir[0]
+    const chip = document.querySelector(`.chip[data-axis=${axis}]`)
+    if (chip) {
+      chip.classList.add('hit')
+      setTimeout(() => chip.classList.remove('hit'), 150)
+    }
+    const btn = PAD.find((b) => b.dir === dir)
+    if (btn) {
+      btn.el.classList.add('hit')
+      setTimeout(() => btn.el.classList.remove('hit'), 160)
+    }
+    const half = HALF[dir]
+    if (!half) return
+    for (const l of [...document.querySelectorAll('#triad .hot')]) l.classList.remove('hot')
+    half.classList.add('hot')
+    clearTimeout(hotTimer)
+    hotTimer = setTimeout(() => half.classList.remove('hot'), 240)
+  }
+  g3.onKey = feedback
+
+  for (const { el, dir } of PAD) {
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault()          // 别选中文字、别再触发一次 click
+      const g = three()
+      if (!g) return
+      feedback(dir)
+      g.go(dir)
+    })
+  }
+  viewBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    const g = three()
+    if (g) g.resetView()
+  })
+  undoBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault()
+    active().undo()
+  })
+  // 音效开关：按钮和 M 键共用同一个状态
+  const setSoundIcon = (on) => {
+    soundBtn.textContent = on ? '🔊' : '🔇'
+    soundBtn.classList.toggle('muted', !on)
+  }
+  if (window.HomuAudio) {
+    setSoundIcon(HomuAudio.enabled)
+    g3.onSound = setSoundIcon
+    g2.onSound = setSoundIcon
+    soundBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      setSoundIcon(HomuAudio.toggle())
+    })
+  } else {
+    soundBtn.style.display = 'none'
+  }
+  applyDim()
+
+  // 调试 / 自动化入口：探针按当前维度取 api（stats、state 之类）
+  window.__homuApp = { game: active, dim: () => dim }
+
+  // ?bot=1 求解器代打，每 320ms 一步；?botms=150 可调间隔（自动化截图时加速用）
+  const botQuery = new URLSearchParams(location.search)
+  if (botQuery.has('bot')) {
+    const botMs = Number(botQuery.get('botms')) || 320
+    const badge = document.createElement('div')
+    badge.style.cssText = 'position:fixed;left:18px;bottom:44px;padding:5px 10px;border-radius:999px;' +
+      'background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.45);color:#7dd3fc;font-size:12px'
+    badge.textContent = '求解器代打中'
+    document.body.appendChild(badge)
+    const timer = setInterval(() => {
+      const game = active()
+      if (game.state.over) {
+        clearInterval(timer)
+        badge.textContent = `结束 · ${game.state.score} 分 · ${game.state.steps} 步`
+        return
+      }
+      const dir = game.bestMove()
+      if (!dir) { clearInterval(timer); return }
+      game.go(dir)
+    }, botMs)
+  }
+
+  // ?sim=50 求解器立刻结算若干步（不做动画）：用来快速看终局、对比离线评测。
+  // 与 ?bot 的区别是同步执行、不依赖定时器，无头截图里也能跑完。
+  const simSteps = Number(botQuery.get('sim')) || 0
+  if (simSteps > 0) {
+    const game = active()
+    for (let i = 0; i < simSteps && !game.state.over; i++) {
+      const dir = game.bestMove()
+      if (!dir) break
+      game.go(dir, false)
+    }
+  }
+
+  // ?demo=x+,y+,z+ 直接结算若干步，方便截图核对（平面版会把这些名字映射成左/右/上/下）
+  const demo = new URLSearchParams(location.search).get('demo')
+  if (demo) {
+    const game = active()
+    for (const dir of demo.split(',')) {
+      if (!dir) continue
+      game.go(dir.trim(), false)
+    }
+  }
+})()
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>音效试听 · 移动音</title>
+<style>
+  html, body { margin: 0; min-height: 100%; background: #0a1020; color: #cbd5e1;
+    font: 14px/1.6 "Microsoft YaHei", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: #93a4bd; margin: 0 0 22px; font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 10px;
+    border: 1px solid rgba(148,163,184,.22); border-radius: 12px; background: rgba(17,26,46,.7); }
+  .row .name { width: 120px; font-weight: 700; }
+  .row .desc { flex: 1; color: #93a4bd; font-size: 12px; }
+  .row .peak { width: 86px; text-align: right; color: #7dd3fc; font: 12px ui-monospace, Consolas, monospace; }
+  button { background: rgba(56,189,248,.14); border: 1px solid rgba(56,189,248,.45);
+    color: #7dd3fc; border-radius: 9px; padding: 6px 12px; font: 13px "Microsoft YaHei", system-ui;
+    cursor: pointer; }
+  button:hover { background: rgba(56,189,248,.26); color: #e2e8f0; }
+  button.ghost { border-color: rgba(148,163,184,.3); color: #93a4bd; background: transparent; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 20px;
+    background: rgba(10,16,32,.92); border-top: 1px solid rgba(148,163,184,.18);
+    display: flex; gap: 12px; align-items: center; color: #64748b; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>移动音试听</h1>
+  <p class="sub">没有合并时会响的那一声。点“连按”听连续五下，判断会不会腻。</p>
+  <div id="list"></div>
+</main>
+<div id="bar">
+  <button id="measure" class="ghost">离线测电平</button>
+  <span id="hint">先点任意一个“试听”来解锁浏览器音频</span>
+</div>
+
+<script src="./audio.js"></script>
+<script>
+(() => {
+  // 每个候选 = 一个“移动音”的画法，用的都是 audio.js 里那套振荡器/噪声/混响
+  const CANDIDATES = [
+    {
+      id: 'A', name: 'A 旧版', desc: '高频气流 + 940Hz 亮音（舰长说难听的那个）',
+      play (e) {
+        const t = e.ctx.currentTime + 0.002
+        e.noise(t, 0.11, 0.19, 1500, 420, 0.7)
+        e.tone(t + 0.002, 940, 0.1, 0.06, 'sine')
+      },
+    },
+    {
+      id: 'B', name: 'B 木块闷敲', desc: '低频下坠 215→138Hz + 薄泛音 + 20ms 起音（当前采用）',
+      play (e) {
+        const t = e.ctx.currentTime + 0.003
+        e.glide(t, 215, 138, 0.17, 0.12)
+        e.glide(t, 430, 300, 0.05, 0.07)
+        e.noise(t, 0.02, 0.055, 2100, 900, 1.6)
+      },
+    },
+    {
+      id: 'C', name: 'C 塑料转块', desc: '更短更脆：320→240Hz，50ms，起音噪声 12ms',
+      play (e) {
+        const t = e.ctx.currentTime + 0.003
+        e.glide(t, 320, 240, 0.13, 0.06)
+        e.noise(t, 0.012, 0.05, 3200, 1600, 1.8)
+      },
+    },
+    {
+      id: 'D', name: 'D 软气声', desc: '只有一层低通噪声，不做音高，像布擦过桌面',
+      play (e) {
+        const t = e.ctx.currentTime + 0.002
+        e.noise(t, 0.14, 0.11, 900, 300, 0.5)
+      },
+    },
+    {
+      id: 'E', name: 'E 极简', desc: '干净的一下 240Hz 短音，不加噪声',
+      play (e) {
+        const t = e.ctx.currentTime + 0.003
+        e.glide(t, 250, 200, 0.12, 0.075)
+      },
+    },
+  ]
+
+  const list = document.getElementById('list')
+  const hint = document.getElementById('hint')
+
+  function withEngine (fn) {
+    const c = HomuAudio.context()
+    if (!c) { hint.textContent = '这个浏览器没有 Web Audio'; return null }
+    hint.textContent = '音量键在游戏底部（🔊 / M），这里跟随游戏设置'
+    fn({ ctx: c.ctx, ...c.engine })
+    return c
+  }
+
+  for (const cand of CANDIDATES) {
+    const row = document.createElement('div')
+    row.className = 'row'
+    row.innerHTML = `<span class="name">${cand.name}</span>` +
+      `<span class="desc">${cand.desc}</span>` +
+      `<span class="peak" id="peak-${cand.id}">—</span>`
+    const b1 = document.createElement('button')
+    b1.textContent = '试听'
+    b1.onclick = () => withEngine((e) => cand.play(e))
+    const b2 = document.createElement('button')
+    b2.textContent = '连按 ×5'
+    b2.className = 'ghost'
+    b2.onclick = () => withEngine((e) => {
+      for (let i = 0; i < 5; i++) setTimeout(() => cand.play(e), i * 260)
+    })
+    row.append(b1, b2)
+    list.appendChild(row)
+  }
+
+  // 离线渲染每个候选，量一下峰值，避免有人做出来爆音
+  document.getElementById('measure').onclick = async () => {
+    const SR = 44100
+    for (const cand of CANDIDATES) {
+      const ctx = new OfflineAudioContext(1, Math.floor(SR * 0.5), SR)
+      const e = HomuAudio.engine(ctx, ctx.destination)
+      cand.play({ ctx, ...e })
+      const buf = await ctx.startRendering()
+      const d = buf.getChannelData(0)
+      let peak = 0
+      for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]))
+      document.getElementById('peak-' + cand.id).textContent = peak.toFixed(3)
+    }
+    hint.textContent = '峰值已量：0.3 左右是不削顶又够响的区间'
+  }
+
+  // ?auto=1 直接量电平，方便无头/自动截图核对
+  if (new URLSearchParams(location.search).has('auto')) {
+    setTimeout(() => document.getElementById('measure').click(), 300)
+  }
+})()
+</script>
+</body>
+</html>
