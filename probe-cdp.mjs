@@ -146,8 +146,10 @@ async function main () {
   await send('Runtime.enable')
   await send('Page.enable')
   await send('Page.navigate', { url: URL_ARG })
-  for (let i = 0; i < 80; i++) {
-    const ready = await evaluate('!!window.HomuGame && !!window.HomuGame2d && !!document.querySelector("body > canvas")')
+  // 等到页面脚本真正跑完（__homuApp 是内联脚本最后一行），而不是只等资源就位——
+  // 走隧道/网络慢的时候，中间会有一段“脚本还没执行完”的空窗。
+  for (let i = 0; i < 150; i++) {
+    const ready = await evaluate('!!window.__homuApp && !!document.querySelector("body > canvas")')
     if (ready) break
     await sleep(100)
   }
