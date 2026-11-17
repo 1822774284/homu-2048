@@ -227,9 +227,33 @@
   }
   .b2-tile.pop { animation: b2pop .18s ease-out; }
 
+  /* ---- 首屏加载层：three.js 有 670KB，慢网下这段是黑的，先给个东西看 ---- */
+  #boot {
+    position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center;
+    gap: 18px; background: #0a1020; color: #93a4bd; font-size: 13px; letter-spacing: .08em;
+    transition: opacity .35s ease;
+  }
+  #boot.done { opacity: 0; pointer-events: none; }
+  .boot-cube {
+    width: 44px; height: 44px; border: 3px solid #38bdf8; border-radius: 12px;
+    box-shadow: 0 0 24px rgba(56,189,248,.45), inset 0 0 18px rgba(56,189,248,.22);
+    animation: boot-spin 1.6s cubic-bezier(.6,.05,.4,.95) infinite;
+  }
+  @keyframes boot-spin {
+    0% { transform: rotateX(0) rotateY(0); }
+    100% { transform: rotateX(180deg) rotateY(180deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .boot-cube { animation: none; }
+  }
+
 </style>
 </head>
 <body data-dim="3d">
+<div id="boot">
+  <div class="boot-cube"></div>
+  <p id="boot-hint">正在加载…</p>
+</div>
 <div id="board2d"></div>
 <header>
   <div>
@@ -309,6 +333,16 @@
   <div><strong id="overTitle">结束</strong><small id="overSub">按 R 重开</small></div>
 </div>
 
+<script>
+  // 加载层兜底：6 秒还没就绪就换个说法，免得朋友以为页面坏了
+  setTimeout(function () {
+    var boot = document.getElementById('boot')
+    var hint = document.getElementById('boot-hint')
+    if (boot && hint && !boot.classList.contains('done')) {
+      hint.textContent = '还在加载 three.js…（首次约 670KB，之后有缓存）'
+    }
+  }, 6000)
+</script>
 <script src="./vendor/three.min.js"></script>
 <script src="./engine3d.js"></script>
 <script src="./engine2d.js"></script>
@@ -610,6 +644,13 @@
 
   // 调试 / 自动化入口：探针按当前维度取 api（stats、state 之类）
   window.__homuApp = { game: active, dim: () => dim }
+
+  // 页面脚本跑到这里说明 three 与所有模块都就绪了：收起加载层
+  const bootEl = document.getElementById('boot')
+  if (bootEl) {
+    bootEl.classList.add('done')
+    setTimeout(() => bootEl.remove(), 400)
+  }
 
   // ?bot=1 求解器代打，每 320ms 一步；?botms=150 可调间隔（自动化截图时加速用）
   const botQuery = new URLSearchParams(location.search)

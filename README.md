@@ -114,3 +114,8 @@ node probe-cdp.mjs                 # 需要本机有 Chrome 或 Edge，可用 ED
 ## 许可
 
 [MIT](LICENSE)。内置的 three.js r160 同样是 MIT，见 `vendor/three.min.js` 与 LICENSE 中的第三方声明。
+
+## 声明
+
+非官方同人作品，与 miHoYo 无关。「吼姆」及相关角色、形象的权利归米哈游（miHoYo）所有。
+本项目仅用于学习与娱乐，不用于商业用途。
