@@ -145,6 +145,8 @@
     transition: transform .16s ease;
   }
   .arw.text { font: 700 11px/1 "Microsoft YaHei", system-ui; letter-spacing: 0; }
+  /* 英文的 Near / Far 比「近 / 远」宽，缩一点字号，别把六个方向键撑成两种宽度 */
+  html[lang="en"] .arw.text { font-size: 9.5px; letter-spacing: -.2px; font-family: system-ui, sans-serif; }
   /* 箭头跟轴线同色，配合 X/Y/Z 标签区分“屏幕上看起来很像的两条轴” */
   .pad-side .dir[data-dir^=x] .arw { color: #f87171; }
   .pad-side .dir[data-dir^=y] .arw { color: #4ade80; }
@@ -164,6 +166,12 @@
     background: rgba(251,191,36,.16); border-color: rgba(251,191,36,.6); color: #fde68a;
     box-shadow: 0 0 0 1px rgba(251,191,36,.22) inset;
   }
+  /* 语言药丸：不参与维度高亮，用虚线和更暗的字把它和三个维度键分开 */
+  .dim.lang {
+    margin-left: 8px; padding: 4px 10px; border-style: dashed;
+    color: #7dd3fc; border-color: rgba(125,211,252,.4); font-family: system-ui, "Microsoft YaHei";
+  }
+  .dim.lang:hover { color: #e0f2fe; border-color: rgba(125,211,252,.8); }
 
   /* ---- 2D 棋盘：4×4 DOM 方块 ---- */
   /* 整层都不接指针：棋盘只靠键盘，绝不能把上面的标题栏 / 药丸挡住
@@ -311,21 +319,22 @@
 <body data-dim="3d">
 <div id="boot">
   <div class="boot-cube"></div>
-  <p id="boot-hint">正在加载…</p>
+  <p id="boot-hint" data-i18n="boot">正在加载…</p>
 </div>
-<div id="touch-hint" hidden>单指滑动 = 推方块 · 双指拖动或 ↺ ↻ = 转视角</div>
+<div id="touch-hint" hidden data-i18n="touchHint">单指滑动 = 推方块 · 双指拖动或 ↺ ↻ = 转视角</div>
 <div id="board2d"></div>
 <header>
   <div>
     <div class="dims" id="dims">
-      <button class="dim" data-dim="2d">2D 平面</button>
-      <button class="dim" data-dim="3d">3D 3×3×3</button>
-      <button class="dim" data-dim="3d4">3D 4×4×4</button>
+      <button class="dim" data-dim="2d" data-i18n="dim2d">2D 平面</button>
+      <button class="dim" data-dim="3d" data-i18n="dim3d">3D 3×3×3</button>
+      <button class="dim" data-dim="3d4" data-i18n="dim3d4">3D 4×4×4</button>
+      <button class="dim lang" id="langBtn" type="button" data-i18n="langSwitch" data-i18n-title="langTitle" title="切换为 English">EN</button>
     </div>
-    <h1><em>吼姆</em> 2048 · <span id="dimName">立方体</span></h1>
+    <h1><em id="brand" data-i18n="brand">吼姆</em> 2048 · <span id="dimName">立方体</span></h1>
     <p class="sub" id="sub">方向键 4 向 · Q/E 走层深 · L 分层 · V 视角复位 · M 静音 · 拖拽转视角 · R 重开</p>
     <div class="modes" id="modes">
-      <span class="modes-hint">步数</span>
+      <span class="modes-hint" data-i18n="stepsLabel">步数</span>
       <button class="mode" data-limit="100">100</button>
       <button class="mode" data-limit="200">200</button>
       <button class="mode" data-limit="400">400</button>
@@ -341,8 +350,8 @@
 </header>
 
 <footer>
-  <span id="footHint">特殊块：虚线框标记，只能与同值特殊块合并，合并即消失</span>
-  <span>步数上限 <b id="limitText">200</b></span>
+  <span id="footHint" data-i18n="foot3d">特殊块：虚线框标记，只能与同值特殊块合并，合并即消失</span>
+  <span><span data-i18n="footLimit">步数上限</span> <b id="limitText">200</b></span>
 </footer>
 
 <div class="pad-side" id="pad-side">
@@ -355,11 +364,11 @@
 </div>
 
 <div class="pad" id="pad">
-  <button class="dir act icon" data-act="yaw-l" title="向左转视角（Shift+←）">↺</button>
-  <button class="dir act icon" data-act="yaw-r" title="向右转视角（Shift+→）">↻</button>
-  <button class="dir act" data-act="view" title="视角复位（V）">⌂ 视角</button>
-  <button class="dir act" data-act="undo" title="回退一步（Ctrl+Z）">↶ 回退</button>
-  <button class="dir act icon" data-act="sound" title="音效开关（M）">🔊</button>
+  <button class="dir act icon" data-act="yaw-l" data-i18n-title="tipYawL" title="向左转视角（Shift+←）">↺</button>
+  <button class="dir act icon" data-act="yaw-r" data-i18n-title="tipYawR" title="向右转视角（Shift+→）">↻</button>
+  <button class="dir act" data-act="view" data-i18n="viewBtn" data-i18n-title="tipView" title="视角复位（V）">⌂ 视角</button>
+  <button class="dir act" data-act="undo" data-i18n="undoBtn" data-i18n-title="tipUndo" title="回退一步（Ctrl+Z）">↶ 回退</button>
+  <button class="dir act icon" data-act="sound" data-i18n-title="tipSound" title="音效开关（M）">🔊</button>
 </div>
 
 <div class="legend">
@@ -392,7 +401,7 @@
   <text id="lz" fill="#60a5fa">Z+</text>
 </svg>
 <div class="over" id="over">
-  <div><strong id="overTitle">结束</strong><small id="overSub">按 R 重开</small></div>
+  <div><strong id="overTitle" data-i18n="overTitle">结束</strong><small id="overSub" data-i18n="overSub">按 R 重开</small></div>
 </div>
 
 <script>
@@ -401,22 +410,27 @@
     var boot = document.getElementById('boot')
     var hint = document.getElementById('boot-hint')
     if (boot && hint && !boot.classList.contains('done')) {
-      hint.textContent = '还在加载 three.js…（首次约 670KB，之后有缓存）'
+      hint.textContent = window.HomuI18n
+        ? window.HomuI18n.t('bootSlow')
+        : '还在加载 three.js…（首次约 670KB，之后有缓存）'
     }
   }, 6000)
 </script>
 <!-- ?v= 是资产版本号：每次改 JS 都要一起改，否则老访客会一直吃缓存里的旧脚本 -->
-<script src="./vendor/three.min.js?v=20261118a"></script>
-<script src="./engine3d.js?v=20261118a"></script>
-<script src="./engine2d.js?v=20261118a"></script>
-<script src="./render3d.js?v=20261118a"></script>
-<script src="./audio.js?v=20261118a"></script>
-<script src="./game3d.js?v=20261118a"></script>
-<script src="./game2d.js?v=20261118a"></script>
-<script src="./solver3d.js?v=20261118a"></script>
+<script src="./i18n.js?v=20261118b"></script>
+<script src="./vendor/three.min.js?v=20261118b"></script>
+<script src="./engine3d.js?v=20261118b"></script>
+<script src="./engine2d.js?v=20261118b"></script>
+<script src="./render3d.js?v=20261118b"></script>
+<script src="./audio.js?v=20261118b"></script>
+<script src="./game3d.js?v=20261118b"></script>
+<script src="./game2d.js?v=20261118b"></script>
+<script src="./solver3d.js?v=20261118b"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search)
+  // i18n.js 就在前面几个 <script> 里加载，拿不到时退化成原 key，页面不会白
+  const t = (...args) => (window.HomuI18n ? window.HomuI18n.t(...args) : args[0])
   const store = (() => {
     try {
       localStorage.setItem('__homu_probe__', '1')
@@ -477,14 +491,14 @@
     stepsEl.textContent = h.limit > 0 ? `${h.steps}/${h.limit}` : String(h.steps)
     peakEl.textContent = h.peak ? String(h.peak) : '—'
     bestEl.textContent = String(h.best || 0)
-    limitText.textContent = h.limit > 0 ? String(h.limit) : '无限'
+    limitText.textContent = h.limit > 0 ? String(h.limit) : t('unlimited')
     for (const b of modeBtns) b.dataset.on = Number(b.dataset.limit) === h.limit ? '1' : '0'
     // 局终时方向键变灰，但“回退”要留着——正好用来救回死局
     for (const { el } of PAD) el.classList.toggle('off', !!h.over)
     undoBtn.classList.toggle('dim', !h.canUndo)
     if (h.over) {
-      overTitle.textContent = (h.limit > 0 && h.steps >= h.limit) ? '步数用尽' : '无路可走'
-      overSub.textContent = `本局 ${h.score} 分 · ${h.steps} 步 · 最高 ${h.best} 分 · 按 R 重开`
+      overTitle.textContent = (h.limit > 0 && h.steps >= h.limit) ? t('overSteps') : t('overStuck')
+      overSub.textContent = t('overLine', h)
       overEl.dataset.on = '1'
     } else {
       overEl.dataset.on = '0'
@@ -494,21 +508,18 @@
   g2.onHud = hud
 
   /* ---------- 维度切换 ---------- */
-  const dimBtns = [...document.querySelectorAll('.dim')]
+  const dimBtns = [...document.querySelectorAll('.dim[data-dim]')]
+  // 语言药丸只认 click（不参与维度 pointerdown 那一套），点一下整页重载
+  const langBtn = document.getElementById('langBtn')
+  if (langBtn && window.HomuI18n) {
+    langBtn.addEventListener('click', () => window.HomuI18n.set(window.HomuI18n.other))
+  }
   const dimName = document.getElementById('dimName')
   const subEl = document.getElementById('sub')
   const footEl = document.getElementById('footHint')
-  const TITLE = { '3d': '立方体 3×3×3', '3d4': '立方体 4×4×4', '2d': '平面' }
-  const SUB = {
-    '3d': '方向键 4 向 · Q/E 走层深 · L 分层 · V 视角复位 · M 静音 · 拖拽转视角 · R 重开',
-    '3d4': '同一套六向操作 · 64 格 · 4 层 · L 分层 · V 视角复位 · R 重开',
-    '2d': '方向键 / WASD 移动 · 标准 4×4 · Ctrl+Z 回退 · M 静音 · R 重开',
-  }
-  const FOOT = {
-    '3d': '特殊块：虚线框标记，只能与同值特殊块合并，合并即消失',
-    '3d4': '4×4×4：64 格 · 存档与最高分和 3×3×3 分开记',
-    '2d': '平面 4×4 · 与立方版分开记最高分，存档与步数模式各自独立',
-  }
+  const TITLE = { '3d': t('title3d'), '3d4': t('title3d4'), '2d': t('title2d') }
+  const SUB = { '3d': t('sub3d'), '3d4': t('sub3d4'), '2d': t('sub2d') }
+  const FOOT = { '3d': t('foot3d'), '3d4': t('foot3d4'), '2d': t('foot2d') }
   /** 模式药丸跟着当前棋盘走：3×3×3 是 100/200/400，4×4×4 整体上移到 200/400/800。 */
   function syncModePills (game) {
     const modes = (game && game.modes) || [100, 200, 400, 0]
@@ -637,7 +648,7 @@
         if (!Number.isFinite(p.z)) { arw.style.opacity = '0'; continue }
         arw.style.opacity = ''
         const toward = p.z * s > 0
-        arw.textContent = toward ? '近' : '远'
+        arw.textContent = toward ? t('near') : t('far')
         arw.classList.add('text')
         arw.style.setProperty('--rot', '0deg')
         continue
@@ -781,13 +792,13 @@
     const badge = document.createElement('div')
     badge.style.cssText = 'position:fixed;left:18px;bottom:44px;padding:5px 10px;border-radius:999px;' +
       'background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.45);color:#7dd3fc;font-size:12px'
-    badge.textContent = '求解器代打中'
+    badge.textContent = t('botBadge')
     document.body.appendChild(badge)
     const timer = setInterval(() => {
       const game = active()
       if (game.state.over) {
         clearInterval(timer)
-        badge.textContent = `结束 · ${game.state.score} 分 · ${game.state.steps} 步`
+        badge.textContent = t('botEnd', game.state)
         return
       }
       const dir = game.bestMove()

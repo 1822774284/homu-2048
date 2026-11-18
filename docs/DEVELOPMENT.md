@@ -14,8 +14,9 @@
 | `solver3d.js` | 求解器：两段前瞻 + 均值/最坏折中；`?bot=1` 时代打 |
 | `render3d.js` | 渲染组件：圆角盒几何（边缘加密 + 逐面 UV + 平滑法线）、数字纹理 |
 | `audio.js` | 音效层：全部 Web Audio 现场合成，不依赖音频文件；`HomuAudio.engine(ctx)` 可离线渲染做测试 |
+| `i18n.js` | 界面语言层：中文/英文字典 + `?lang=` 解析 + 静态文案注入；切语言靠整页重载 |
 | `bench-solver.mjs` | 求解器离线评测：20 个固定种子跑满步数（`node bench-solver.mjs 200`，`N=4` 换 4×4×4） |
-| `probe-cdp.mjs` | 无头交互回归：DevTools 协议发真按键/真点击，38 项断言（`node probe-cdp.mjs`） |
+| `probe-cdp.mjs` | 无头交互回归：DevTools 协议发真按键/真点击，42 项断言（`node probe-cdp.mjs`） |
 | `probe-uv.js` | 几何体检：逐面统计圆角盒的 UV 跨度与法线误差（`node probe-uv.js`） |
 | `sfx-lab.html` | 音效试听台：移动音的 5 个候选一键试听，还能离线量峰值 |
 | `vendor/three.min.js` | 本地 three.js r160（669,884 字节，离线可用） |
@@ -49,13 +50,23 @@
 - `?demo=` / `?bot=` / `?seed=` / `?sim=` 是一次性对局，既不读档也不写档，避免把调试局写进存档
 - 无头截图（不弹窗，走 SwiftShader）：
   `msedge --headless=new --disable-gpu --enable-unsafe-swiftshader --window-size=900,900 --virtual-time-budget=4000 --screenshot=out.png "<file url>"`
-- 交互回归（真按键、真点击、真拖动，不依赖虚拟时钟）：`node probe-cdp.mjs`，连 DevTools 协议逐项断言并打印 PASS/FAIL（当前 33 项）
+- 交互回归（真按键、真点击、真拖动，不依赖虚拟时钟）：`node probe-cdp.mjs`，连 DevTools 协议逐项断言并打印 PASS/FAIL（当前 42 项）
+- **切语言**：`?lang=zh` / `?lang=en` 强制；不带参数时按 `localStorage('homu2048.lang.v1')` → `navigator.language`（`zh*` 中文，其余英文）。带 `?lang=` 访问会把结果写进 localStorage，所以 probe 用 `?fresh=1&lang=zh` 钉住中文——无头浏览器的 `navigator.language` 是 `en-US`，不钉的话「标题是立方体」那几项会先挂
 - 渲染统计：`?debug=1` 的 HUD 末位是累计 `renders`，静止时不再增长即为按需渲染生效；页面另暴露 `window.__homuApp.game().stats()`
 - 改完 JS 必须 **Ctrl+F5** 强刷；自动化抓图要用全新的 `--user-data-dir`，否则会吃到旧脚本
-- **每次改 JS 都要改 `index.html` 里的 `?v=` 版本号**（现在是 `20261118a`）。线上同事/朋友不会 Ctrl+F5，
+- **每次改 JS 都要改 `index.html` 里的 `?v=` 版本号**（现在是 `20261118b`）。线上同事/朋友不会 Ctrl+F5，
   缓存里留着旧 game3d.js 时会出现“界面是新的、行为是旧的”这种鬼问题（真遇到过：方向键两个方向都显示「远」）
 
 ## 修复记录
+
+- **2026-11-18 界面中英双语**
+  - 新增 `i18n.js`：一张中英字典 + `?lang=` 解析 + 静态文案注入（`data-i18n` / `data-i18n-title`）。
+  - 语言判定顺序：`?lang=` → localStorage → `navigator.language`（`zh*` 中文，其余英文）。
+  - 切换不重建 DOM，直接 `location.replace()` 整页重载：局面与最高分本来就在 localStorage，
+    只有回退历史会丢。比给每个模块传 `lang` 参数便宜，也不会漏掉哪一句。
+  - 尺寸坑：英文的 `Near / Far` 比「近 / 远」宽，方向键会被撑成两种宽度 → 加 `html[lang="en"] .arw.text` 缩小字号。
+  - 无头回归也得跟着改：probe 默认 URL 改成 `?fresh=1&lang=zh`（无头浏览器 `navigator.language` 是 `en-US`），
+    否则「标题是立方体」这类断言会先挂；同时新增 4 项英语界面断言，总数 38 → 42。
 
 - **2026-11-17 4×4×4 上线（第三档，与 3×3×3、2D 并存）**
   - 规则层本来就支持 `makeEngine(N)`，改动都在场景层与页面。

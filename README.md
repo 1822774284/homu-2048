@@ -21,6 +21,8 @@
 
 左上角胶囊切换（`2D 平面` / `3D 3×3×3` / `3D 4×4×4`），选择会被记住。
 
+**界面中英双语**：默认跟随浏览器语言（`zh*` 走中文，其余英文），胶囊行末尾的虚线小键 `EN / 中文` 手动切换，选择记在 localStorage；`?lang=zh` / `?lang=en` 可强制。
+
 ## 快速开始
 
 ```bash
@@ -107,7 +109,7 @@ node engine2d.js
 node bench-solver.mjs 200          # 3×3×3
 N=4 node bench-solver.mjs 400      # 4×4×4
 
-# 无头交互回归：真按键 / 真点击 / 真拖动，38 项断言
+# 无头交互回归：真按键 / 真点击 / 真拖动，42 项断言
 node probe-cdp.mjs                 # 需要本机有 Chrome 或 Edge，可用 EDGE=<路径> 指定；Node ≥ 22
 ```
 

@@ -1,4 +1,4 @@
-﻿# Homu 2048 · Cube & Flat
+# Homu 2048 · Cube & Flat
 
 [中文](README.md) · **English**
 
@@ -15,7 +15,9 @@ Three 2048 boards on one static page: **3D 3×3×3** (27 cells, six directions),
 - **2D Flat** — standard 4×4, keyboard or swipe
 - Each board keeps its **own save, own best score, own move limit** — switching never overwrites the others
 
-Switch with the pill in the top-left (`2D 平面` / `3D 3×3×3` / `3D 4×4×4`). The choice is remembered.
+Switch with the pill in the top-left (`2D Flat` / `3D 3×3×3` / `3D 4×4×4`). The choice is remembered.
+
+**The UI is bilingual**: it follows the browser language (`zh*` gets Chinese, everything else English). The dashed `EN / 中文` pill at the end of that row switches it by hand and the choice is remembered; `?lang=zh` / `?lang=en` force one.
 
 ## Quick start
 
@@ -109,7 +111,7 @@ node engine2d.js
 node bench-solver.mjs 200          # 3×3×3
 N=4 node bench-solver.mjs 400      # 4×4×4
 
-# headless interaction regression: real keys, clicks and drags, 38 assertions
+# headless interaction regression: real keys, clicks and drags, 42 assertions
 node probe-cdp.mjs                 # needs Chrome or Edge; set EDGE=<path> to pick one. Node >= 22
 ```
 

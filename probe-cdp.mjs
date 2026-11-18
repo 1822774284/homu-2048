@@ -28,7 +28,8 @@ if (!EDGE) {
 
 // 默认打开本目录的 index.html，不写死任何绝对路径
 const here = dirname(fileURLToPath(import.meta.url))
-const DEFAULT_URL = pathToFileURL(join(here, 'index.html')).href + '?fresh=1'
+// lang=zh 钉住中文：无头浏览器的 navigator.language 是 en-US，不钉的话 38 项断言里的中文标题会先挂
+const DEFAULT_URL = pathToFileURL(join(here, 'index.html')).href + '?fresh=1&lang=zh'
 const URL_ARG = process.argv[2] || DEFAULT_URL
 const BASE_URL = URL_ARG.split('?')[0]
 const PORT = 9200 + Math.floor(Math.random() * 400)
@@ -278,6 +279,18 @@ async function main () {
   check('重载后仍是 2D（维度已记住）', (await evaluate('document.body.dataset.dim')) === '2d')
   check('重载后 2D 药丸高亮', (await evaluate(`document.querySelector('.dim[data-dim="2d"]').dataset.on`)) === '1')
   check('重载后 2D 有棋盘方块', (await evaluate(`document.querySelectorAll('.b2-tile').length`)) >= 2)
+
+  // ---- 语言：?lang=en 整页英文，点药丸切回中文（选择写进 localStorage）----
+  await send('Page.navigate', { url: `${BASE_URL}?lang=en` })
+  await sleep(1600)
+  check('英文界面：维度名', (await text('#dimName')) === 'Flat', await text('#dimName'))
+  check('英文界面：回退按钮', (await text('[data-act="undo"]')) === '↶ Undo')
+  check('英文界面：语言药丸指向中文', (await text('#langBtn')) === '中文')
+  await click('#langBtn')
+  await sleep(1800)
+  check('点药丸切回中文', (await text('#langBtn')) === 'EN' &&
+    (await evaluate('document.documentElement.lang')) === 'zh-CN',
+    `${await text('#langBtn')} / ${await evaluate('document.documentElement.lang')}`)
 
   // ---- 页面没报错 ----
   check('无未捕获错误', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
