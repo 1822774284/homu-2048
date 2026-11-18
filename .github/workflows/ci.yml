@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: 3×3×3 规则自检
         run: node engine3d.js test
@@ -37,7 +37,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # probe-cdp.mjs 用的是全局 WebSocket，Node 21 之前没有这个东西（Node 20 上会报 WebSocket is not defined）
+          node-version: '22'
 
       # ubuntu-latest 预装 /usr/bin/google-chrome，probe-cdp.mjs 的候选列表里就有它
       - name: 真按键 / 真点击 / 真拖动

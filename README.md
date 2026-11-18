@@ -108,7 +108,7 @@ node bench-solver.mjs 200          # 3×3×3
 N=4 node bench-solver.mjs 400      # 4×4×4
 
 # 无头交互回归：真按键 / 真点击 / 真拖动，38 项断言
-node probe-cdp.mjs                 # 需要本机有 Chrome 或 Edge，可用 EDGE=<路径> 指定
+node probe-cdp.mjs                 # 需要本机有 Chrome 或 Edge，可用 EDGE=<路径> 指定；Node ≥ 22
 ```
 
 调试参数（`?seed=`、`?sim=`、`?debug=`、`?bot=`、`?ghostmode=` 等）见 [开发笔记](docs/DEVELOPMENT.md#调试)。

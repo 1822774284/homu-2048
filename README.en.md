@@ -1,4 +1,4 @@
-# Homu 2048 · Cube & Flat
+﻿# Homu 2048 · Cube & Flat
 
 [中文](README.md) · **English**
 
@@ -110,7 +110,7 @@ node bench-solver.mjs 200          # 3×3×3
 N=4 node bench-solver.mjs 400      # 4×4×4
 
 # headless interaction regression: real keys, clicks and drags, 38 assertions
-node probe-cdp.mjs                 # needs Chrome or Edge; set EDGE=<path> to pick one
+node probe-cdp.mjs                 # needs Chrome or Edge; set EDGE=<path> to pick one. Node >= 22
 ```
 
 Debug parameters (`?seed=`, `?sim=`, `?debug=`, `?bot=`, `?ghostmode=` …) are documented in the [dev notes](docs/DEVELOPMENT.md#调试).
