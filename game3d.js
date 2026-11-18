@@ -172,7 +172,8 @@
       const out = {}
       for (const [name, vec] of Object.entries({ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] })) {
         const v = new THREE.Vector3(vec[0], vec[1], vec[2]).transformDirection(camera.matrixWorldInverse)
-        out[name] = { x: v.x, y: -v.y }
+        // z 是相机空间的前后分量：>0 表示这个方向朝观察者（用来判断「近 / 远」）
+        out[name] = { x: v.x, y: -v.y, z: v.z }
       }
       return out
     }

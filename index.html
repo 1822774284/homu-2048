@@ -130,6 +130,18 @@
     font-size: 9px; line-height: 1; opacity: .6; transition: transform .12s, opacity .12s;
     display: inline-block;
   }
+  /* 方向按钮里的大箭头：角度跟着机位转，指向“按下去方块在屏幕上往哪走”。
+     轴几乎正对镜头时换成“近/远”两个字，免得箭头指着一个没意义的角度。 */
+  .arw {
+    display: inline-block; font-size: 17px; line-height: 1; opacity: .95;
+    transform: rotate(var(--rot, 0deg));
+    transition: transform .16s ease;
+  }
+  .arw.text { font: 700 11px/1 "Microsoft YaHei", system-ui; letter-spacing: 0; }
+  /* 箭头跟轴线同色，配合 X/Y/Z 标签区分“屏幕上看起来很像的两条轴” */
+  .pad-side .dir[data-dir^=x] .arw { color: #f87171; }
+  .pad-side .dir[data-dir^=y] .arw { color: #4ade80; }
+  .pad-side .dir[data-dir^=z] .arw { color: #60a5fa; }
   .dir.off { opacity: .3; pointer-events: none; }
 
   /* ---- 维度切换（左上角，2D 平面 / 3D 立方） ---- */
@@ -327,12 +339,12 @@
 </footer>
 
 <div class="pad-side" id="pad-side">
-  <button class="dir" data-dir="x-">←<b>−</b><span class="tip">▶</span></button>
-  <button class="dir" data-dir="x+">→<b>+</b><span class="tip">▶</span></button>
-  <button class="dir" data-dir="y-">↓<b>−</b><span class="tip">▶</span></button>
-  <button class="dir" data-dir="y+">↑<b>+</b><span class="tip">▶</span></button>
-  <button class="dir" data-dir="z-">Q<b>−</b><span class="tip">▶</span></button>
-  <button class="dir" data-dir="z+">E<b>+</b><span class="tip">▶</span></button>
+  <button class="dir" data-dir="x-"><span class="arw">➤</span><b>X−</b></button>
+  <button class="dir" data-dir="x+"><span class="arw">➤</span><b>X+</b></button>
+  <button class="dir" data-dir="y-"><span class="arw">➤</span><b>Y−</b></button>
+  <button class="dir" data-dir="y+"><span class="arw">➤</span><b>Y+</b></button>
+  <button class="dir" data-dir="z-"><span class="arw">➤</span><b>Z−</b></button>
+  <button class="dir" data-dir="z+"><span class="arw">➤</span><b>Z+</b></button>
 </div>
 
 <div class="pad" id="pad">
@@ -552,10 +564,10 @@
     },
     label: document.getElementById(`l${ax}`),
   }))
-  // 光标按钮：与键盘同一套世界轴。右侧小三角按当前机位旋转，
-  // 直接告诉玩家“按这个，块会往屏幕哪边走”。
+  // 光标按钮：与键盘同一套世界轴。箭头角度按当前机位实时算，
+  // 直接告诉玩家“按这个，块会往屏幕哪边走”；轴正对镜头时改显示「近 / 远」。
   const PAD = [...document.querySelectorAll('.pad-side .dir[data-dir]')].map((el) => ({
-    el, dir: el.dataset.dir, tip: el.querySelector('.tip'),
+    el, dir: el.dataset.dir, arw: el.querySelector('.arw'),
   }))
   const viewBtn = document.querySelector('.pad .dir[data-act=view]')
   const yawLBtn = document.querySelector('.pad .dir[data-act=yaw-l]')
@@ -605,19 +617,23 @@
       it.label.setAttribute('y', (uy * (L_POS * len + 12) + 4).toFixed(1))
       it.label.style.opacity = vis.toFixed(2)
     }
-    for (const { tip, dir } of PAD) {
+    for (const { arw, dir } of PAD) {
       const p = a[AXIS_OF[dir[0]]]
       const s = dir[1] === '+' ? 1 : -1
       const vx = p.x * s
       const vy = p.y * s
       const len = Math.hypot(vx, vy)
+      // 轴几乎正对镜头：屏幕方向没有意义，换成「近 / 远」（z 分量决定朝观察者还是背离）
       if (len < 0.2) {
-        // 这根轴几乎正对镜头，屏幕上看不出方向，藏起指南针
-        tip.style.opacity = '0'
+        const toward = (p.z || 0) * s > 0
+        arw.textContent = toward ? '近' : '远'
+        arw.classList.add('text')
+        arw.style.setProperty('--rot', '0deg')
         continue
       }
-      tip.style.opacity = String(0.45 + 0.5 * Math.min(1, len))
-      tip.style.transform = `rotate(${(Math.atan2(vy, vx) * 180 / Math.PI).toFixed(0)}deg)`
+      arw.textContent = '➤'
+      arw.classList.remove('text')
+      arw.style.setProperty('--rot', `${(Math.atan2(vy, vx) * 180 / Math.PI).toFixed(0)}deg`)
     }
   }
   // 初始画一次坐标轴（相机建好时回调还没挂上）
