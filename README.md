@@ -1,10 +1,16 @@
 # 吼姆 2048 · 立方体 / 平面
 
+[![线上可玩](https://img.shields.io/badge/%E7%BA%BF%E4%B8%8A-%E7%AB%8B%E5%8D%B3%E5%BC%80%E7%8E%A9-2ea44f)](https://1822774284.github.io/homu-2048/)
+[![ci](https://github.com/1822774284/homu-2048/actions/workflows/ci.yml/badge.svg)](https://github.com/1822774284/homu-2048/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**中文** · [English](README.en.md)
+
 在同一个页面里放三套 2048：**3D 3×3×3**（27 格、六个方向）、**3D 4×4×4**（64 格、同一套操作）、**2D 平面**（经典 4×4）。纯静态网页，无构建步骤、无外部依赖，双击就能玩。
 
-> 2048 in 3D — three boards (3×3×3, 4×4×4, and classic 4×4) in one static page. No build step, no network.
+![演示：推方块、分层拆开、转视角](docs/demo.gif)
 
-![3×3×3 立方体](docs/ui-3d.png)
+> 2048 in 3D — three boards (3×3×3, 4×4×4, and classic 4×4) in one static page. No build step, no network.
 
 ## 三套棋盘
 
