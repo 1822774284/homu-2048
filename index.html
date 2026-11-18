@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -95,7 +95,7 @@
     position: fixed; inset: 0; display: none; place-items: center; text-align: center;
     background: rgba(5,10,20,.76); backdrop-filter: blur(4px); z-index: 9;
   }
-  .over[data-on="1"] { display: grid; }
+  .over[data-on="1"] { display: grid; cursor: pointer; }
   .over strong { display: block; font-size: 22px; margin-bottom: 6px; }
   .over small { color: #93a4bd; }
   /* 光标移动键：右侧中部，一条轴一行（负在左、正在右）。
@@ -305,9 +305,9 @@
       grid-template-columns: repeat(2, 56px); gap: 8px;
     }
     .pad-side .dir { height: 44px; min-width: 56px; padding: 0 8px; font-size: 15px; }
-    .pad { bottom: 14px; gap: 5px; }
-    .pad .dir { height: 34px; min-width: 54px; font-size: 12px; white-space: nowrap; }
-    .pad .dir.act { min-width: 58px; }
+    .pad { bottom: 14px; gap: 4px; }
+    .pad .dir { height: 34px; min-width: 52px; font-size: 12px; white-space: nowrap; }
+    .pad .dir.act { min-width: 54px; padding: 0 7px; }
     .pad .dir.act.icon { min-width: 38px; font-size: 15px; }
     footer { display: none; }
     /* 手机上棋盘尽量占满宽度，别缩成一小块 */
@@ -369,6 +369,7 @@
   <button class="dir act" data-act="view" data-i18n="viewBtn" data-i18n-title="tipView" title="视角复位（V）">⌂ 视角</button>
   <button class="dir act" data-act="undo" data-i18n="undoBtn" data-i18n-title="tipUndo" title="回退一步（Ctrl+Z）">↶ 回退</button>
   <button class="dir act icon" data-act="sound" data-i18n-title="tipSound" title="音效开关（M）">🔊</button>
+  <button class="dir act" data-act="restart" data-i18n="restartBtn" data-i18n-title="tipRestart" title="重开一局（R）">⟳ 重开</button>
 </div>
 
 <div class="legend">
@@ -417,15 +418,15 @@
   }, 6000)
 </script>
 <!-- ?v= 是资产版本号：每次改 JS 都要一起改，否则老访客会一直吃缓存里的旧脚本 -->
-<script src="./i18n.js?v=20261118b"></script>
-<script src="./vendor/three.min.js?v=20261118b"></script>
-<script src="./engine3d.js?v=20261118b"></script>
-<script src="./engine2d.js?v=20261118b"></script>
-<script src="./render3d.js?v=20261118b"></script>
-<script src="./audio.js?v=20261118b"></script>
-<script src="./game3d.js?v=20261118b"></script>
-<script src="./game2d.js?v=20261118b"></script>
-<script src="./solver3d.js?v=20261118b"></script>
+<script src="./i18n.js?v=20261118c"></script>
+<script src="./vendor/three.min.js?v=20261118c"></script>
+<script src="./engine3d.js?v=20261118c"></script>
+<script src="./engine2d.js?v=20261118c"></script>
+<script src="./render3d.js?v=20261118c"></script>
+<script src="./audio.js?v=20261118c"></script>
+<script src="./game3d.js?v=20261118c"></script>
+<script src="./game2d.js?v=20261118c"></script>
+<script src="./solver3d.js?v=20261118c"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search)
@@ -592,6 +593,7 @@
   const yawLBtn = document.querySelector('.pad .dir[data-act=yaw-l]')
   const yawRBtn = document.querySelector('.pad .dir[data-act=yaw-r]')
   const undoBtn = document.querySelector('.pad .dir[data-act=undo]')
+  const restartBtn = document.querySelector('.pad .dir[data-act=restart]')
   const soundBtn = document.querySelector('.pad .dir[data-act=sound]')
 
   /** 把一条半轴画成方向 (ux,uy)、长 L 的线 + 实心三角箭头。
@@ -735,6 +737,19 @@
   undoBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault()
     active().undo()
+  })
+  // 重开：手机上没有键盘，R 键指望不上；桌面端这个按钮和 R 等价
+  if (restartBtn) {
+    restartBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault()
+      active().restart()
+    })
+  }
+  // 局终遮罩点一下也重开——手机上最自然的动作就是点那行字
+  overEl.addEventListener('pointerdown', (e) => {
+    if (overEl.dataset.on !== '1') return
+    e.preventDefault()
+    active().restart()
   })
   // 音效开关：按钮和 M 键共用同一个状态
   const setSoundIcon = (on) => {

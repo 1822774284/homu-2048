@@ -16,7 +16,7 @@
 | `audio.js` | 音效层：全部 Web Audio 现场合成，不依赖音频文件；`HomuAudio.engine(ctx)` 可离线渲染做测试 |
 | `i18n.js` | 界面语言层：中文/英文字典 + `?lang=` 解析 + 静态文案注入；切语言靠整页重载 |
 | `bench-solver.mjs` | 求解器离线评测：20 个固定种子跑满步数（`node bench-solver.mjs 200`，`N=4` 换 4×4×4） |
-| `probe-cdp.mjs` | 无头交互回归：DevTools 协议发真按键/真点击，42 项断言（`node probe-cdp.mjs`） |
+| `probe-cdp.mjs` | 无头交互回归：DevTools 协议发真按键/真点击，45 项断言（`node probe-cdp.mjs`） |
 | `probe-uv.js` | 几何体检：逐面统计圆角盒的 UV 跨度与法线误差（`node probe-uv.js`） |
 | `sfx-lab.html` | 音效试听台：移动音的 5 个候选一键试听，还能离线量峰值 |
 | `vendor/three.min.js` | 本地 three.js r160（669,884 字节，离线可用） |
@@ -50,14 +50,22 @@
 - `?demo=` / `?bot=` / `?seed=` / `?sim=` 是一次性对局，既不读档也不写档，避免把调试局写进存档
 - 无头截图（不弹窗，走 SwiftShader）：
   `msedge --headless=new --disable-gpu --enable-unsafe-swiftshader --window-size=900,900 --virtual-time-budget=4000 --screenshot=out.png "<file url>"`
-- 交互回归（真按键、真点击、真拖动，不依赖虚拟时钟）：`node probe-cdp.mjs`，连 DevTools 协议逐项断言并打印 PASS/FAIL（当前 42 项）
+- 交互回归（真按键、真点击、真拖动，不依赖虚拟时钟）：`node probe-cdp.mjs`，连 DevTools 协议逐项断言并打印 PASS/FAIL（当前 45 项）
 - **切语言**：`?lang=zh` / `?lang=en` 强制；不带参数时按 `localStorage('homu2048.lang.v1')` → `navigator.language`（`zh*` 中文，其余英文）。带 `?lang=` 访问会把结果写进 localStorage，所以 probe 用 `?fresh=1&lang=zh` 钉住中文——无头浏览器的 `navigator.language` 是 `en-US`，不钉的话「标题是立方体」那几项会先挂
 - 渲染统计：`?debug=1` 的 HUD 末位是累计 `renders`，静止时不再增长即为按需渲染生效；页面另暴露 `window.__homuApp.game().stats()`
 - 改完 JS 必须 **Ctrl+F5** 强刷；自动化抓图要用全新的 `--user-data-dir`，否则会吃到旧脚本
-- **每次改 JS 都要改 `index.html` 里的 `?v=` 版本号**（现在是 `20261118b`）。线上同事/朋友不会 Ctrl+F5，
+- **每次改 JS 都要改 `index.html` 里的 `?v=` 版本号**（现在是 `20261118c`）。线上同事/朋友不会 Ctrl+F5，
   缓存里留着旧 game3d.js 时会出现“界面是新的、行为是旧的”这种鬼问题（真遇到过：方向键两个方向都显示「远」）
 
 ## 修复记录
+
+- **2026-11-18 手机上加「重开」**
+  - 问题：底部工具键只有 视角 / 回退 / 音效，重开只挂在 R 键上——手机没有键盘，等于没有重开。
+  - 底部加 `⟳ 重开`（`data-act="restart"`），放在音效之后，避免和「回退」相邻误触（误触会直接吃掉一局，回退也救不回来）。
+  - `game3d.js` 补 `restart()` 并导出（原来只有 keydown 里内联的一段），`game2d.js` 早就有了，两边接口终于对齐。
+  - 局终遮罩点一下也重开：手机上最自然的动作就是点那行字。`.over[data-on="1"]` 加 `cursor: pointer`。
+  - 手机上网具键变成 6 个：`.pad` 的 gap 5→4、`.dir.act` min-width 58→54，360px 宽的机器还是一行放得下。
+  - 回归：新增 3 项（按钮可见 / 点按钮步数归零 / 点遮罩能重开），42 → 45。
 
 - **2026-11-18 界面中英双语**
   - 新增 `i18n.js`：一张中英字典 + `?lang=` 解析 + 静态文案注入（`data-i18n` / `data-i18n-title`）。

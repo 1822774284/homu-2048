@@ -43,7 +43,7 @@ Deploying to GitHub Pages: **Settings → Pages → Deploy from a branch → `ma
 | Undo | bottom `↶ 回退` or Ctrl+Z, up to 50 steps | same |
 | Reset camera | bottom `⟲ 视角` or V | — |
 | Sound | bottom `🔊` or M | same |
-| Restart | R | R |
+| Restart | R or the bottom `⟳ Restart` button (also: tap the game-over overlay) | same |
 
 - The little triangle on each pad follows the camera: it points at **which way on screen that direction goes right now**; it fades out when the axis is nearly head-on
 - The axis widget in the corner draws every axis as a pair of opposite arrows; the half-axis you press thickens and glows
@@ -111,7 +111,7 @@ node engine2d.js
 node bench-solver.mjs 200          # 3×3×3
 N=4 node bench-solver.mjs 400      # 4×4×4
 
-# headless interaction regression: real keys, clicks and drags, 42 assertions
+# headless interaction regression: real keys, clicks and drags, 45 assertions
 node probe-cdp.mjs                 # needs Chrome or Edge; set EDGE=<path> to pick one. Node >= 22
 ```
 

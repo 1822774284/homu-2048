@@ -727,13 +727,18 @@
       applyCam()
     }
 
+    /** 重开一局：R 键与手机上的「⟳ 重开」按钮共用；最高分不受影响。 */
+    function restart () {
+      state = model.newGame(rng)
+      history = []
+      persist()
+      rebuild()
+    }
+
     addEventListener('keydown', (event) => {
       if (!active) return
       if (event.key === 'r' || event.key === 'R') {
-        state = model.newGame(rng)
-        history = []
-        persist()
-        rebuild()
+        restart()
         return
       }
       if (event.key === 'm' || event.key === 'M') {
@@ -867,6 +872,7 @@
       go: step,
       rebuild,
       undo,
+      restart,
       resetView,
       /** 转视角（弧度）：手机上的旋转按钮与 Shift+←/→ 共用 */
       /** 转视角（弧度）：只改目标角，由 loop 缓动追上，手感不至于一格一格跳 */

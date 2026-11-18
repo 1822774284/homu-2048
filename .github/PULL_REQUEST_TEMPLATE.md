@@ -10,7 +10,7 @@
 
 - [ ] `node engine3d.js test` 全 PASS
 - [ ] `node engine2d.js` 全 PASS
-- [ ] `node probe-cdp.mjs` 42 项全 PASS（改了 DOM / 操作才需要）
+- [ ] `node probe-cdp.mjs` 45 项全 PASS（改了 DOM / 操作才需要）
 - [ ] 手工在各档位里玩过，截图贴在下面
 
 ## 注意

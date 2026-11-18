@@ -265,6 +265,22 @@ async function main () {
   check('切回 3×3×3 恢复档位',
     (await evaluate(`[...document.querySelectorAll('.mode')].map(b => b.dataset.limit).join(',')`)) === '100,200,400,0')
 
+  // ---- 重开：手机上没有键盘，底部按钮与局终遮罩都得能重开 ----
+  check('重开按钮可见',
+    (await evaluate(`getComputedStyle(document.querySelector('.pad .dir[data-act=restart]')).display`)) !== 'none')
+  await key('ArrowLeft', 'ArrowLeft', 37)
+  await sleep(250)
+  await key('ArrowUp', 'ArrowUp', 38)
+  await sleep(250)
+  const beforeRestart = await text('#steps')
+  await click('.pad .dir[data-act=restart]')
+  await sleep(400)
+  check('点重开后步数归零', (await text('#steps')) === '0/200', `${beforeRestart} → ${await text('#steps')}`)
+  await evaluate(`document.getElementById('over').dataset.on = '1'`)
+  await click('#over')
+  await sleep(400)
+  check('点结算遮罩也能重开', (await evaluate(`document.getElementById('over').dataset.on`)) === '0')
+
   // ---- 结算遮罩不能吃掉维度按钮：局终时也要点得回另一维 ----
   await evaluate(`document.getElementById('over').dataset.on = '1'`)
   check('结算遮罩下药丸仍可点', (await hitTest('.dim[data-dim="2d"]')) === 'self', await hitTest('.dim[data-dim="2d"]'))

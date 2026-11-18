@@ -30,7 +30,7 @@ jobs:
         run: node bench-solver.mjs 200
 
   headless:
-    name: 无头交互回归（42 项）
+    name: 无头交互回归（45 项）
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
