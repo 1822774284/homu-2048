@@ -9,7 +9,7 @@
 | 演示 GIF（3:2 竖版偏方，640×547，约 3MB） | `docs/demo.gif` |
 | 桌面截图 3×3×3 / 4×4×4 / 平面 | `docs/ui-3d.png`、`docs/ui-4x4x4.png`、`docs/ui-2d.png` |
 | 手机截图 | `docs/mob-m3.png`、`docs/mob-m4.png`、`docs/mob-m2.png` |
-| 社交卡片（1280×640） | `docs/social-preview.png` |
+| 社交卡片（1280×640） | `docs/social-preview.png`（传不上去就用同目录的 `social-preview.jpg`） |
 
 - 线上：<https://1822774284.github.io/homu-2048/>
 - 仓库：<https://github.com/1822774284/homu-2048>
@@ -122,6 +122,7 @@
 
 ## 发布节奏
 
+0. 上传社交卡片如果报 `Something went really wrong and we can't process that picture`：先重试一次（GitHub 这个接口偶发失败），还不行就改用 `docs/social-preview.jpg`——同一张图，JPEG 90，102KB，它的处理器对 JPEG 更宽容。
 1. 先修好仓库的 Social preview（Settings → Social preview → 上传 `docs/social-preview.png`），再发任何链接——之后所有转发卡片都用这张。
 2. 同一天发两处足够：一个中文社区 + 一个英文社区。分发太散，回复不过来，反而没人管。
 3. 发布后 4 小时内盯评论：3D 眩晕、手机操作、求解器这三个问题最常被问，答案已经在 README 里，直接摘。
