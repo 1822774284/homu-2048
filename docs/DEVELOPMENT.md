@@ -51,7 +51,9 @@
   `msedge --headless=new --disable-gpu --enable-unsafe-swiftshader --window-size=900,900 --virtual-time-budget=4000 --screenshot=out.png "<file url>"`
 - 交互回归（真按键、真点击、真拖动，不依赖虚拟时钟）：`node probe-cdp.mjs`，连 DevTools 协议逐项断言并打印 PASS/FAIL（当前 33 项）
 - 渲染统计：`?debug=1` 的 HUD 末位是累计 `renders`，静止时不再增长即为按需渲染生效；页面另暴露 `window.__homuApp.game().stats()`
-- 改完 JS 必须 **Ctrl+F5** 强刷，`?v=` 挡不住子资源缓存；自动化抓图要用全新的 `--user-data-dir`，否则会吃到旧脚本
+- 改完 JS 必须 **Ctrl+F5** 强刷；自动化抓图要用全新的 `--user-data-dir`，否则会吃到旧脚本
+- **每次改 JS 都要改 `index.html` 里的 `?v=` 版本号**（现在是 `20261118a`）。线上同事/朋友不会 Ctrl+F5，
+  缓存里留着旧 game3d.js 时会出现“界面是新的、行为是旧的”这种鬼问题（真遇到过：方向键两个方向都显示「远」）
 
 ## 修复记录
 

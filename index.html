@@ -398,14 +398,15 @@
     }
   }, 6000)
 </script>
-<script src="./vendor/three.min.js"></script>
-<script src="./engine3d.js"></script>
-<script src="./engine2d.js"></script>
-<script src="./render3d.js"></script>
-<script src="./audio.js"></script>
-<script src="./game3d.js"></script>
-<script src="./game2d.js"></script>
-<script src="./solver3d.js"></script>
+<!-- ?v= 是资产版本号：每次改 JS 都要一起改，否则老访客会一直吃缓存里的旧脚本 -->
+<script src="./vendor/three.min.js?v=20261118a"></script>
+<script src="./engine3d.js?v=20261118a"></script>
+<script src="./engine2d.js?v=20261118a"></script>
+<script src="./render3d.js?v=20261118a"></script>
+<script src="./audio.js?v=20261118a"></script>
+<script src="./game3d.js?v=20261118a"></script>
+<script src="./game2d.js?v=20261118a"></script>
+<script src="./solver3d.js?v=20261118a"></script>
 <script>
 (() => {
   const qs = new URLSearchParams(location.search)
@@ -625,12 +626,16 @@
       const len = Math.hypot(vx, vy)
       // 轴几乎正对镜头：屏幕方向没有意义，换成「近 / 远」（z 分量决定朝观察者还是背离）
       if (len < 0.2) {
-        const toward = (p.z || 0) * s > 0
+        // 老缓存的 game3d.js 不带 z 分量：这时宁可不显示，也别把两个方向都写成「远」
+        if (!Number.isFinite(p.z)) { arw.style.opacity = '0'; continue }
+        arw.style.opacity = ''
+        const toward = p.z * s > 0
         arw.textContent = toward ? '近' : '远'
         arw.classList.add('text')
         arw.style.setProperty('--rot', '0deg')
         continue
       }
+      arw.style.opacity = ''
       arw.textContent = '➤'
       arw.classList.remove('text')
       arw.style.setProperty('--rot', `${(Math.atan2(vy, vx) * 180 / Math.PI).toFixed(0)}deg`)
