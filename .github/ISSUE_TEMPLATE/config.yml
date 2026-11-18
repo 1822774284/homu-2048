@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 先在线玩一局
+    url: https://1822774284.github.io/homu-2048/
+    about: 只在线上版本复现的问题才算问题；本地改过的文件不在讨论范围。
+  - name: 开发笔记（每次修复的原因与实测数据）
+    url: https://github.com/1822774284/homu-2048/blob/main/docs/DEVELOPMENT.md
+    about: 相机、UV、求解器、性能这些踩过的坑都记在这里，提 issue 前值得先翻一遍。

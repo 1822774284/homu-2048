@@ -1,0 +1,44 @@
+name: 功能建议
+description: 想要新玩法、新操作，或者觉得某处手感该改
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这个项目的底线是**纯静态、无依赖、能离线打开**。
+        需要后端、构建步骤或第三方库的建议，大概率不会采纳——但先说清楚，说不定有绕法。
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 想要什么
+      placeholder: 例如：5×5×5 第五档；或者按住 Shift 拖动，只转一层
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么
+      description: 解决了什么具体麻烦？如果是「别的 2048 有」，请说清哪一处更好用。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围
+      options:
+        - 只影响操作手感
+        - 只影响外观
+        - 要改规则（影响存档与求解器）
+        - 不确定
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: 参与
+      options:
+        - label: 愿意自己提 PR（可以先在 issue 里对一下方案）

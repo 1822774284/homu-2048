@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: 规则层自检 + 求解器评测
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 3×3×3 规则自检
+        run: node engine3d.js test
+
+      - name: 2D 规则自检
+        run: node engine2d.js
+
+      - name: 求解器离线评测（20 局 × 200 步，基线中位 2580）
+        run: node bench-solver.mjs 200
+
+  headless:
+    name: 无头交互回归（38 项）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ubuntu-latest 预装 /usr/bin/google-chrome，probe-cdp.mjs 的候选列表里就有它
+      - name: 真按键 / 真点击 / 真拖动
+        run: node probe-cdp.mjs

@@ -1,0 +1,62 @@
+name: 问题反馈
+description: 玩不动、显示不对、手机上手感不对，或者控制台报错
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先确认是不是**旧缓存**：强制刷新（Ctrl+Shift+R）后再试一次。
+        线上版本会带上资产版本号，正常情况下改完刷新就生效。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 一句话说清现象。截图/录屏直接拖进来最好。
+      placeholder: 例如：4×4×4 推到第 3 层时右侧 Y+ 按钮的箭头指反了
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 按顺序写，每一步写清按了什么、看到了什么。
+      placeholder: |
+        1. 打开页面，切到 3D 4×4×4
+        2. 鼠标拖到俯视 60°
+        3. 按 Q 两次
+        4. 期望：… 实际：…
+    validations:
+      required: true
+
+  - type: input
+    id: board
+    attributes:
+      label: 哪套棋盘 / 哪个档位
+      placeholder: 3D 3×3×3 · 200 步 / 4×4×4 · 800 步 / 2D 平面 · 无限
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 浏览器与设备
+      placeholder: Chrome 131 / Windows 11，或 iPhone 15 Safari
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: 控制台报错（F12 → Console）
+      description: 没有就写「无」。有报错请贴全文，不要只贴第一行。
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 自查
+      options:
+        - label: 已经强制刷新过一次（排除旧缓存）
+        - label: 用的是线上版本（https://1822774284.github.io/homu-2048/），不是本地改过的文件
