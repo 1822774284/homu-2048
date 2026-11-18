@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://1822774284.github.io/homu-2048/sitemap.xml
