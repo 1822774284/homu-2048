@@ -68,6 +68,7 @@
     let manualZoom = false      // 用户滚轮缩放过之后，不再被自动 fitRadius 覆盖
     let explode = EXPLODE_GAP   // 分层间距（fitRadius 会用到，必须早于第一次 applyCam）
     const cam = { yaw: 0.62, pitch: 0.6 }
+    let yawTarget = cam.yaw     // 缓动目标：按钮转视角时改它，loop 里追过去
     // 视角可由查询串固定，便于按角度复现（?yaw=0.62&pitch=-0.6&radius=11）
     {
       const q = new URLSearchParams(location.search)
@@ -77,6 +78,7 @@
       if (qp !== null) cam.pitch = qp
       if (qr !== null) camRadius = qr
     }
+    yawTarget = cam.yaw         // 查询串可能改过 yaw，缓动目标要跟上
     let apiRef = null
 
     // 按需渲染：只有“有动画”或“画面被弄脏”时才真正 draw。
@@ -661,6 +663,14 @@
     function loop (now) {
       const dt = Math.min(60, now - last)
       last = now
+      // 视角缓动：旋转按钮/按键只改目标角度，这里按指数插值追过去，不至于一格一格跳。
+      // dt 夹到 32ms：慢帧时不至于一帧就飞过去（否则看起来还是“瞬移”）。
+      if (Math.abs(yawTarget - cam.yaw) > 1e-4) {
+        const k = 1 - Math.exp(-Math.min(dt, 32) / 140)
+        cam.yaw += (yawTarget - cam.yaw) * k
+        if (Math.abs(yawTarget - cam.yaw) < 0.002) cam.yaw = yawTarget
+        applyCam()
+      }
       for (const a of anims) {
         a.t += dt
         const k = Math.min(1, a.t / a.dur)
@@ -710,6 +720,7 @@
     function resetView () {
       cam.yaw = 0.62
       cam.pitch = 0.6
+      yawTarget = cam.yaw
       manualZoom = false
       camRadius = N >= 4 ? 13.5 : 11
       applyCam()
@@ -747,8 +758,8 @@
       // Shift + ←/→ 转视角（与底部两个旋转按钮一致），别和移动键抢
       if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
         event.preventDefault()
-        cam.yaw += (event.key === 'ArrowLeft' ? 1 : -1) * Math.PI / 9
-        applyCam()
+        yawTarget = (Number.isFinite(yawTarget) ? yawTarget : cam.yaw) + (event.key === 'ArrowLeft' ? 1 : -1) * Math.PI / 9
+        requestRender()
         return
       }
       const dir = DIRS[event.key]
@@ -808,9 +819,11 @@
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       const isMouse = e.pointerType === 'mouse'
       if (!isMouse && pointers.size < 2) return   // 单指触摸留给滑动，不转视角
-      const k = isMouse ? 0.007 : 0.005
+      // 双指拖动放大到 0.014 rad/px：手机上原来 0.005 太肉，划一大段才转一点
+      const k = isMouse ? 0.007 : 0.014
       cam.yaw -= (e.clientX - prev.x) * k
       cam.pitch += (e.clientY - prev.y) * k
+      yawTarget = cam.yaw                          // 手动拖动直接给结果，别让缓动再追
       // 折进 (-π, π]，一次大位移也能落回区间（一次加减不够）
       cam.pitch = Math.atan2(Math.sin(cam.pitch), Math.cos(cam.pitch))
       applyCam()
@@ -855,9 +868,10 @@
       undo,
       resetView,
       /** 转视角（弧度）：手机上的旋转按钮与 Shift+←/→ 共用 */
+      /** 转视角（弧度）：只改目标角，由 loop 缓动追上，手感不至于一格一格跳 */
       rotateBy (delta) {
-        cam.yaw += delta
-        applyCam()
+        yawTarget = (Number.isFinite(yawTarget) ? yawTarget : cam.yaw) + delta
+        requestRender()
       },
       setLimit,
       get limit () { return stepLimit },
@@ -877,6 +891,8 @@
       },
       // 调试用：renders 只增不减，用来验证“空闲时真的不再画”
       stats: () => ({ renders, draws: renderer.info.render.calls, tris: renderer.info.render.triangles }),
+      // 调试用：当前机位（自动化里量旋转缓动/灵敏度）
+      camera: () => ({ yaw: cam.yaw, yawTarget, pitch: cam.pitch, radius: camRadius }),
       setExplode (v) { explode = v; rebuild() },
       bestMove: () => (window.solver3d ? window.solver3d.bestMove(model, state.board) : null),
     }
