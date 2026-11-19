@@ -3,7 +3,7 @@
 // 用法：EDGE=<浏览器路径> node probe-cdp.mjs [url]
 //   默认打开本目录的 index.html（file://），可用环境变量 EDGE 指定 Chrome/Edge 可执行文件。
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -320,5 +320,9 @@ main()
     console.log(`\n${rows.length} 项，${failed} 项失败`)
     try { ws && ws.close() } catch { /* ignore */ }
     child.kill()
+    // 必须给浏览器进程一点时间退出：它死之前一直占着 user-data-dir，
+    // 立删会 EPERM。删不掉也不算失败，交给系统临时目录清理。
+    await sleep(600)
+    try { rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* ignore */ }
     process.exit(failed ? 1 : 0)
   })
